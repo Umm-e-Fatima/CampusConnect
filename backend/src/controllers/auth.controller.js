@@ -1,0 +1,162 @@
+const bcrypt = require('bcryptjs');
+const jwt = require('jsonwebtoken');
+const crypto = require('crypto');
+const pool = require('../config/db');
+const { generateOTP, isOTPExpired } = require('../utils/otp.utils');
+
+//  REGISTER 
+const register = async (req, res) => {
+  const { full_name, email, password, gender, department, semester } = req.body;
+
+  if (!full_name || !email || !password)
+    return res.status(400).json({ error: 'full_name, email and password are required' });
+
+  try {
+    // Check email not already registered
+    const exists = await pool.query('SELECT id FROM users WHERE email = $1', [email]);
+    if (exists.rows.length > 0)
+      return res.status(409).json({ error: 'Email already registered' });
+
+    // Validate university email domain
+    const domain = email.split('@')[1];
+    const uni = await pool.query(
+      'SELECT id FROM universities WHERE email_domain = $1',
+      [domain]
+    );
+    if (uni.rows.length === 0)
+      return res.status(400).json({ error: 'Please use your university email address' });
+
+    // Hash password and generate OTP
+    const password_hash = await bcrypt.hash(password, 12);
+    const otp_code = generateOTP();
+    const otp_expires_at = new Date(Date.now() + parseInt(process.env.OTP_EXPIRES_MINUTES || 10) * 60000);
+
+    const result = await pool.query(
+      `INSERT INTO users
+        (full_name, email, password_hash, gender, department, semester, university_id, otp_code, otp_expires_at)
+       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9)
+       RETURNING id, email, full_name`,
+      [full_name, email, password_hash, gender, department, semester, uni.rows[0].id, otp_code, otp_expires_at]
+    );
+
+    // In production: send OTP via email/SMS
+    // For now it prints to terminal so you can test
+    console.log(`>>> OTP for ${email}: ${otp_code}`);
+
+    res.status(201).json({
+      message: 'Registered successfully. Check your email for the OTP.',
+      user_id: result.rows[0].id,
+    });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'Registration failed' });
+  }
+};
+
+//  VERIFY OTP 
+const verifyOTP = async (req, res) => {
+  const { email, otp } = req.body;
+
+  if (!email || !otp)
+    return res.status(400).json({ error: 'email and otp are required' });
+
+  try {
+    const result = await pool.query(
+      'SELECT id, otp_code, otp_expires_at FROM users WHERE email = $1',
+      [email]
+    );
+    const user = result.rows[0];
+
+    if (!user)
+      return res.status(404).json({ error: 'User not found' });
+    if (user.otp_code !== otp)
+      return res.status(400).json({ error: 'Invalid OTP' });
+    if (isOTPExpired(user.otp_expires_at))
+      return res.status(400).json({ error: 'OTP has expired. Please register again.' });
+
+    await pool.query(
+      'UPDATE users SET is_email_verified = TRUE, otp_code = NULL, otp_expires_at = NULL WHERE id = $1',
+      [user.id]
+    );
+
+    res.json({ message: 'Email verified. You can now log in.' });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'Verification failed' });
+  }
+};
+
+//  LOGIN 
+const login = async (req, res) => {
+  const { email, password } = req.body;
+
+  if (!email || !password)
+    return res.status(400).json({ error: 'email and password are required' });
+
+  try {
+    const result = await pool.query(
+      `SELECT id, email, password_hash, full_name, role, university_id, is_email_verified
+       FROM users WHERE email = $1 AND is_active = TRUE`,
+      [email]
+    );
+    const user = result.rows[0];
+
+    if (!user)
+      return res.status(401).json({ error: 'Invalid credentials' });
+    if (!user.is_email_verified)
+      return res.status(403).json({ error: 'Please verify your email first' });
+
+    const valid = await bcrypt.compare(password, user.password_hash);
+    if (!valid)
+      return res.status(401).json({ error: 'Invalid credentials' });
+
+    // Create JWT
+    const token = jwt.sign(
+      { id: user.id, email: user.email, role: user.role, university_id: user.university_id },
+      process.env.JWT_SECRET,
+      { expiresIn: process.env.JWT_EXPIRES_IN || '1d' }
+    );
+
+    // Save session to DB
+    const tokenHash = crypto.createHash('sha256').update(token).digest('hex');
+    const expiresAt = new Date(Date.now() + 24 * 60 * 60 * 1000); // 1 day
+    const deviceInfo = req.headers['user-agent']?.substring(0, 255);
+
+    await pool.query(
+      `INSERT INTO sessions (user_id, token_hash, device_info, ip_address, expires_at)
+       VALUES ($1,$2,$3,$4,$5)`,
+      [user.id, tokenHash, deviceInfo, req.ip, expiresAt]
+    );
+
+    res.json({
+      token,
+      user: {
+        id: user.id,
+        full_name: user.full_name,
+        email: user.email,
+        role: user.role,
+      },
+    });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'Login failed' });
+  }
+};
+
+//  LOGOUT 
+const logout = async (req, res) => {
+  try {
+    const token = req.headers.authorization?.split(' ')[1];
+    const tokenHash = crypto.createHash('sha256').update(token).digest('hex');
+    await pool.query(
+      'UPDATE sessions SET is_active = FALSE WHERE token_hash = $1',
+      [tokenHash]
+    );
+    res.json({ message: 'Logged out successfully' });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'Logout failed' });
+  }
+};
+
+module.exports = { register, verifyOTP, login, logout };

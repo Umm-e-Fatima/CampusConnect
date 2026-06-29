@@ -1,0 +1,41 @@
+import React from 'react';
+import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
+import { AuthProvider } from './context/AuthContext';
+
+// Pages
+import Login from './pages/Login';
+import Register from './pages/Register';
+import VerifyOTP from './pages/VerifyOTP';
+import Home from './pages/Home';
+import Resources from './pages/Resources';
+import Books from './pages/Books';
+import QnA from './pages/QnA';
+
+// Components
+import PrivateRoute from './components/PrivateRoute';
+
+function App() {
+  return (
+    <AuthProvider>
+      <BrowserRouter>
+        <Routes>
+          {/* Public routes */}
+          <Route path="/login"      element={<Login />} />
+          <Route path="/register"   element={<Register />} />
+          <Route path="/verify-otp" element={<VerifyOTP />} />
+
+          {/* Protected routes */}
+          <Route path="/home"      element={<PrivateRoute><Home /></PrivateRoute>} />
+          <Route path="/resources" element={<PrivateRoute><Resources /></PrivateRoute>} />
+          <Route path="/books"     element={<PrivateRoute><Books /></PrivateRoute>} />
+          <Route path="/qna"       element={<PrivateRoute><QnA /></PrivateRoute>} />
+
+          {/* Default redirect */}
+          <Route path="*" element={<Navigate to="/login" />} />
+        </Routes>
+      </BrowserRouter>
+    </AuthProvider>
+  );
+}
+
+export default App;

@@ -1,0 +1,19 @@
+# Dependencies
+node_modules/
+
+# Environment variables  never commit these
+backend/.env
+frontend/.env
+
+# Build
+frontend/build/
+
+# Logs
+*.log
+
+# OS
+.DS_Store
+Thumbs.db
+
+# IDE
+.vscode/
