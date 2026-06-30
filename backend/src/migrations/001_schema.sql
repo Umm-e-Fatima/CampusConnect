@@ -79,6 +79,12 @@ CREATE TABLE IF NOT EXISTS resources (
   cloudinary_id  VARCHAR(255) NOT NULL,
   file_size_kb   INTEGER,
   download_count INTEGER DEFAULT 0,
+
+  -- Listing type: gift is free, borrow/buy are paid (Week 4 feature)
+  listing_type   VARCHAR(10) DEFAULT 'gift' CHECK (listing_type IN ('gift', 'borrow', 'buy')),
+  price          NUMERIC(8,2),               -- per-day for borrow, flat for buy
+  delivery_mode  VARCHAR(10) DEFAULT 'online' CHECK (delivery_mode IN ('online', 'offline', 'both')),
+
   is_active      BOOLEAN DEFAULT TRUE,
   created_at     TIMESTAMPTZ DEFAULT NOW()
 );
@@ -110,19 +116,45 @@ CREATE INDEX IF NOT EXISTS idx_books_status     ON book_listings(status);
 
 -- BOOK REQUESTS + PIN HANDOFF
 CREATE TABLE IF NOT EXISTS book_requests (
-  id             UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
-  listing_id     UUID NOT NULL REFERENCES book_listings(id) ON DELETE CASCADE,
-  requester_id   UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
-  pin_code       VARCHAR(6),
-  pin_expires_at TIMESTAMPTZ,
-  pin_confirmed  BOOLEAN DEFAULT FALSE,
-  status         VARCHAR(20) DEFAULT 'pending' CHECK (status IN ('pending', 'pin_issued', 'completed', 'cancelled')),
-  created_at     TIMESTAMPTZ DEFAULT NOW(),
-  updated_at     TIMESTAMPTZ DEFAULT NOW()
+  id              UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  listing_id      UUID NOT NULL REFERENCES book_listings(id) ON DELETE CASCADE,
+  requester_id    UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  pin_code        VARCHAR(6),
+  pin_expires_at  TIMESTAMPTZ,
+  pin_confirmed   BOOLEAN DEFAULT FALSE,
+
+  -- Borrow tracking (only used when listing_type = 'borrow')
+  borrow_days     SMALLINT,
+  borrow_due_date TIMESTAMPTZ,
+
+  status          VARCHAR(20) DEFAULT 'pending' CHECK (status IN ('pending', 'pin_issued', 'completed', 'cancelled')),
+  created_at      TIMESTAMPTZ DEFAULT NOW(),
+  updated_at      TIMESTAMPTZ DEFAULT NOW()
 );
 
 CREATE INDEX IF NOT EXISTS idx_book_requests_listing   ON book_requests(listing_id);
 CREATE INDEX IF NOT EXISTS idx_book_requests_requester ON book_requests(requester_id);
+
+-- RESOURCE REQUESTS + PIN/PAYMENT HANDOFF (used starting Week 4)
+CREATE TABLE IF NOT EXISTS resource_requests (
+  id                   UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  resource_id          UUID NOT NULL REFERENCES resources(id) ON DELETE CASCADE,
+  requester_id         UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  delivery_mode        VARCHAR(10) CHECK (delivery_mode IN ('online', 'offline')),
+  borrow_days          SMALLINT,
+  pin_code             VARCHAR(6),
+  pin_expires_at       TIMESTAMPTZ,
+  seller_confirmed     BOOLEAN DEFAULT FALSE,
+  download_token       VARCHAR(255),
+  download_expires_at  TIMESTAMPTZ,
+  download_used        BOOLEAN DEFAULT FALSE,
+  status               VARCHAR(20) DEFAULT 'pending' CHECK (status IN ('pending', 'pin_issued', 'completed', 'cancelled')),
+  created_at           TIMESTAMPTZ DEFAULT NOW(),
+  updated_at           TIMESTAMPTZ DEFAULT NOW()
+);
+
+CREATE INDEX IF NOT EXISTS idx_resource_requests_resource  ON resource_requests(resource_id);
+CREATE INDEX IF NOT EXISTS idx_resource_requests_requester ON resource_requests(requester_id);
 
 -- QUESTIONS (Anonymous QnA)
 CREATE TABLE IF NOT EXISTS questions (
@@ -164,7 +196,3 @@ CREATE TABLE IF NOT EXISTS upvotes (
   UNIQUE (user_id, target_type, target_id)
 );
 
--- SEED: default university
-INSERT INTO universities (name, email_domain, city)
-VALUES ('University of Gujrat', 'uog.edu.pk', 'Gujrat')
-ON CONFLICT (email_domain) DO NOTHING;

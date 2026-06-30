@@ -11,47 +11,38 @@ const register = async (req, res) => {
   if (!full_name || !email || !password)
     return res.status(400).json({ error: 'full_name, email and password are required' });
 
-  try {
-    // Check email not already registered
-    const exists = await pool.query('SELECT id FROM users WHERE email = $1', [email]);
-    if (exists.rows.length > 0)
-      return res.status(409).json({ error: 'Email already registered' });
+ try {
+  // Check email not already registered
+  const exists = await pool.query('SELECT id FROM users WHERE email = $1', [email]);
+  if (exists.rows.length > 0)
+    return res.status(409).json({ error: 'Email already registered' });
 
-    // Validate university email domain
-    const domain = email.split('@')[1];
-    const uni = await pool.query(
-      'SELECT id FROM universities WHERE email_domain = $1',
-      [domain]
-    );
-    if (uni.rows.length === 0)
-      return res.status(400).json({ error: 'Please use your university email address' });
+  // Accept any .edu.pk email  keeps Roshni open to all Pakistani universities
+  const emailDomain = email.split('@')[1];
+  if (!emailDomain || !emailDomain.endsWith('.edu.pk'))
+    return res.status(400).json({ error: 'Please use a valid .edu.pk university email address' });
 
-    // Hash password and generate OTP
-    const password_hash = await bcrypt.hash(password, 12);
-    const otp_code = generateOTP();
-    const otp_expires_at = new Date(Date.now() + parseInt(process.env.OTP_EXPIRES_MINUTES || 10) * 60000);
+  const password_hash = await bcrypt.hash(password, 12);
+  const otp_code = generateOTP();
+  const otp_expires_at = new Date(Date.now() + parseInt(process.env.OTP_EXPIRES_MINUTES || 10) * 60000);
 
-    const result = await pool.query(
-      `INSERT INTO users
-        (full_name, email, password_hash, gender, department, semester, university_id, otp_code, otp_expires_at)
-       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9)
-       RETURNING id, email, full_name`,
-      [full_name, email, password_hash, gender, department, semester, uni.rows[0].id, otp_code, otp_expires_at]
-    );
+  const result = await pool.query(
+    `INSERT INTO users (full_name, email, password_hash, gender, department, semester, otp_code, otp_expires_at)
+     VALUES ($1,$2,$3,$4,$5,$6,$7,$8) RETURNING id, email, full_name`,
+    [full_name, email, password_hash, gender, department, semester, otp_code, otp_expires_at]
+  );
 
-    // In production: send OTP via email/SMS
-    // For now it prints to terminal so you can test
-    console.log(`>>> OTP for ${email}: ${otp_code}`);
+  console.log(`>>> OTP for ${email}: ${otp_code}`);
 
-    res.status(201).json({
-      message: 'Registered successfully. Check your email for the OTP.',
-      user_id: result.rows[0].id,
-    });
-  } catch (err) {
-    console.error(err);
-    res.status(500).json({ error: 'Registration failed' });
-  }
-};
+  res.status(201).json({
+    message: 'Registered successfully. Check your email for the OTP.',
+    user_id: result.rows[0].id,
+  });
+} catch (err) {
+  console.error(err);
+  res.status(500).json({ error: 'Registration failed' });
+}
+}
 
 //  VERIFY OTP 
 const verifyOTP = async (req, res) => {

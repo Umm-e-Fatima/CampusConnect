@@ -1,0 +1,477 @@
+import React, { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
+import api from '../utils/api';
+
+const Books = () => {
+  const [books, setBooks] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState('');
+  const [selectedType, setSelectedType] = useState('');
+  const [pin, setPin] = useState(null);
+  const [pinExpiry, setPinExpiry] = useState(null);
+  const [confirmData, setConfirmData] = useState({ request_id: '', pin: '' });
+  const [confirmMsg, setConfirmMsg] = useState('');
+  const [activeTab, setActiveTab] = useState('browse'); // browse | confirm
+  const navigate = useNavigate();
+
+  // Fetch books when type filter changes
+  useEffect(() => {
+    const fetchBooks = async () => {
+      setLoading(true);
+      setError('');
+      try {
+        const params = {};
+        if (selectedType) params.type = selectedType;
+        const res = await api.get('/books', { params });
+        setBooks(res.data);
+      } catch (err) {
+        setError('Failed to fetch listings');
+      } finally {
+        setLoading(false);
+      }
+    };
+    fetchBooks();
+  }, [selectedType]);
+
+  const handleRequest = async (bookId) => {
+    try {
+      const res = await api.post(`/books/${bookId}/request`);
+      setPin(res.data.pin);
+      setPinExpiry(res.data.expires_at);
+      // Refresh list
+      const updated = await api.get('/books');
+      setBooks(updated.data);
+    } catch (err) {
+      setError(err.response?.data?.error || 'Failed to request book');
+    }
+  };
+
+  const handleConfirmPin = async () => {
+    try {
+      await api.post('/books/confirm-pin', confirmData);
+      setConfirmMsg('Exchange completed successfully!');
+      setConfirmData({ request_id: '', pin: '' });
+    } catch (err) {
+      setConfirmMsg(err.response?.data?.error || 'PIN confirmation failed');
+    }
+  };
+
+  return (
+    <div style={styles.container}>
+
+      {/* Header */}
+      <div style={styles.header}>
+        <button style={styles.backBtn} onClick={() => navigate('/home')}>
+          Back
+        </button>
+        <h1 style={styles.title}>Book Exchange</h1>
+      </div>
+
+      {/* Tabs */}
+      <div style={styles.tabs}>
+        <button
+          style={activeTab === 'browse' ? styles.tabActive : styles.tab}
+          onClick={() => setActiveTab('browse')}
+        >
+          Browse Listings
+        </button>
+        <button
+          style={activeTab === 'confirm' ? styles.tabActive : styles.tab}
+          onClick={() => setActiveTab('confirm')}
+        >
+          Confirm PIN
+        </button>
+      </div>
+
+      {/* Browse Tab */}
+      {activeTab === 'browse' && (
+        <>
+          {/* Filter */}
+          <div style={styles.filters}>
+            <select
+              style={styles.select}
+              value={selectedType}
+              onChange={(e) => setSelectedType(e.target.value)}
+            >
+              <option value="">All Types</option>
+              <option value="paid">Paid</option>
+              <option value="gift">Gift</option>
+              <option value="borrow">Borrow</option>
+            </select>
+          </div>
+
+          {/* PIN Result */}
+          {pin && (
+            <div style={styles.pinBox}>
+              <p style={styles.pinLabel}>Your PIN — show this to the seller</p>
+              <p style={styles.pinCode}>{pin}</p>
+              <p style={styles.pinExpiry}>
+                Expires at: {new Date(pinExpiry).toLocaleTimeString()}
+              </p>
+            </div>
+          )}
+
+          {error && <div style={styles.error}>{error}</div>}
+          {loading && <p style={styles.message}>Loading listings...</p>}
+
+          {!loading && books.length === 0 && (
+            <div style={styles.empty}>
+              <h3 style={styles.emptyTitle}>No listings available</h3>
+              <p style={styles.emptyText}>Check back later for new listings</p>
+            </div>
+          )}
+
+          <div style={styles.list}>
+            {books.map(b => (
+              <div key={b.id} style={styles.card}>
+                <div style={styles.cardLeft}>
+                  <div style={styles.badgeRow}>
+                    <span style={{
+                      ...styles.badge,
+                      backgroundColor:
+                        b.listing_type === 'gift'   ? '#e8f5e9' :
+                        b.listing_type === 'borrow' ? '#e3f2fd' : '#fff8e1',
+                      color:
+                        b.listing_type === 'gift'   ? '#2d6a4f' :
+                        b.listing_type === 'borrow' ? '#1565c0' : '#f57f17',
+                    }}>
+                      {b.listing_type.charAt(0).toUpperCase() + b.listing_type.slice(1)}
+                    </span>
+                    <span style={styles.conditionBadge}>{b.condition}</span>
+                    {b.women_only && (
+                      <span style={styles.womenBadge}>Women Only</span>
+                    )}
+                  </div>
+                  <h3 style={styles.cardTitle}>{b.title}</h3>
+                  {b.author && (
+                    <p style={styles.cardAuthor}>by {b.author}</p>
+                  )}
+                  <p style={styles.cardMeta}>
+                    {b.course_code && `${b.course_code} · `}
+                    Seller: {b.seller_name}
+                    {b.listing_type === 'paid' && ` · Rs. ${b.price}`}
+                  </p>
+                </div>
+                <button
+                  style={styles.requestBtn}
+                  onClick={() => handleRequest(b.id)}
+                >
+                  Request
+                </button>
+              </div>
+            ))}
+          </div>
+        </>
+      )}
+
+      {/* Confirm PIN Tab — for sellers */}
+      {activeTab === 'confirm' && (
+        <div style={styles.confirmBox}>
+          <h2 style={styles.confirmTitle}>Confirm Book Exchange</h2>
+          <p style={styles.confirmSubtitle}>
+            Enter the request ID and PIN the buyer shows you to complete the exchange
+          </p>
+
+          {confirmMsg && (
+            <div style={
+              confirmMsg.includes('success') ? styles.success : styles.error
+            }>
+              {confirmMsg}
+            </div>
+          )}
+
+          <div style={styles.field}>
+            <label style={styles.label}>Request ID</label>
+            <input
+              style={styles.input}
+              type="text"
+              placeholder="Paste the request ID"
+              value={confirmData.request_id}
+              onChange={(e) => setConfirmData({ ...confirmData, request_id: e.target.value })}
+            />
+          </div>
+
+          <div style={styles.field}>
+            <label style={styles.label}>PIN</label>
+            <input
+              style={styles.pinInput}
+              type="text"
+              placeholder="Enter 4-digit PIN"
+              maxLength={4}
+              value={confirmData.pin}
+              onChange={(e) => setConfirmData({ ...confirmData, pin: e.target.value })}
+            />
+          </div>
+
+          <button style={styles.confirmBtn} onClick={handleConfirmPin}>
+            Confirm Exchange
+          </button>
+        </div>
+      )}
+
+    </div>
+  );
+};
+
+const styles = {
+  container: {
+    minHeight: '100vh',
+    backgroundColor: '#f0f4f8',
+    padding: '24px',
+  },
+  header: {
+    display: 'flex',
+    alignItems: 'center',
+    gap: '16px',
+    marginBottom: '24px',
+  },
+  backBtn: {
+    padding: '8px 16px',
+    backgroundColor: '#fff',
+    border: '1px solid #ddd',
+    borderRadius: '8px',
+    fontSize: '14px',
+    cursor: 'pointer',
+    color: '#555',
+  },
+  title: {
+    fontSize: '24px',
+    fontWeight: '700',
+    color: '#2d6a4f',
+  },
+  tabs: {
+    display: 'flex',
+    gap: '8px',
+    marginBottom: '24px',
+  },
+  tab: {
+    padding: '10px 20px',
+    backgroundColor: '#fff',
+    border: '1px solid #ddd',
+    borderRadius: '8px',
+    fontSize: '14px',
+    cursor: 'pointer',
+    color: '#555',
+    fontWeight: '500',
+  },
+  tabActive: {
+    padding: '10px 20px',
+    backgroundColor: '#2d6a4f',
+    border: '1px solid #2d6a4f',
+    borderRadius: '8px',
+    fontSize: '14px',
+    cursor: 'pointer',
+    color: '#fff',
+    fontWeight: '600',
+  },
+  filters: {
+    marginBottom: '24px',
+  },
+  select: {
+    padding: '10px 14px',
+    borderRadius: '8px',
+    border: '1px solid #ddd',
+    fontSize: '14px',
+    backgroundColor: '#fff',
+    cursor: 'pointer',
+    minWidth: '200px',
+  },
+  pinBox: {
+    backgroundColor: '#2d6a4f',
+    color: '#fff',
+    padding: '24px',
+    borderRadius: '12px',
+    textAlign: 'center',
+    marginBottom: '24px',
+  },
+  pinLabel: {
+    fontSize: '14px',
+    marginBottom: '8px',
+    opacity: 0.85,
+  },
+  pinCode: {
+    fontSize: '48px',
+    fontWeight: '700',
+    letterSpacing: '12px',
+    marginBottom: '8px',
+  },
+  pinExpiry: {
+    fontSize: '13px',
+    opacity: 0.75,
+  },
+  error: {
+    backgroundColor: '#ffe5e5',
+    color: '#c0392b',
+    padding: '10px',
+    borderRadius: '8px',
+    marginBottom: '16px',
+    fontSize: '14px',
+  },
+  success: {
+    backgroundColor: '#e8f5e9',
+    color: '#2d6a4f',
+    padding: '10px',
+    borderRadius: '8px',
+    marginBottom: '16px',
+    fontSize: '14px',
+  },
+  message: {
+    color: '#888',
+    textAlign: 'center',
+    padding: '40px',
+  },
+  empty: {
+    textAlign: 'center',
+    padding: '60px 20px',
+    backgroundColor: '#fff',
+    borderRadius: '12px',
+    boxShadow: '0 2px 10px rgba(0,0,0,0.08)',
+  },
+  emptyTitle: {
+    fontSize: '18px',
+    fontWeight: '600',
+    color: '#555',
+    marginBottom: '8px',
+  },
+  emptyText: {
+    fontSize: '14px',
+    color: '#aaa',
+  },
+  list: {
+    display: 'flex',
+    flexDirection: 'column',
+    gap: '16px',
+  },
+  card: {
+    backgroundColor: '#fff',
+    padding: '20px 24px',
+    borderRadius: '12px',
+    boxShadow: '0 2px 10px rgba(0,0,0,0.08)',
+    display: 'flex',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+  },
+  cardLeft: {
+    flex: 1,
+  },
+  badgeRow: {
+    display: 'flex',
+    gap: '8px',
+    marginBottom: '8px',
+    flexWrap: 'wrap',
+  },
+  badge: {
+    display: 'inline-block',
+    padding: '4px 10px',
+    borderRadius: '20px',
+    fontSize: '12px',
+    fontWeight: '600',
+  },
+  conditionBadge: {
+    display: 'inline-block',
+    padding: '4px 10px',
+    backgroundColor: '#f5f5f5',
+    color: '#888',
+    borderRadius: '20px',
+    fontSize: '12px',
+    fontWeight: '600',
+  },
+  womenBadge: {
+    display: 'inline-block',
+    padding: '4px 10px',
+    backgroundColor: '#fce4ec',
+    color: '#c2185b',
+    borderRadius: '20px',
+    fontSize: '12px',
+    fontWeight: '600',
+  },
+  cardTitle: {
+    fontSize: '16px',
+    fontWeight: '600',
+    color: '#333',
+    marginBottom: '4px',
+  },
+  cardAuthor: {
+    fontSize: '13px',
+    color: '#888',
+    marginBottom: '4px',
+  },
+  cardMeta: {
+    fontSize: '13px',
+    color: '#aaa',
+  },
+  requestBtn: {
+    padding: '8px 20px',
+    backgroundColor: '#2d6a4f',
+    color: '#fff',
+    border: 'none',
+    borderRadius: '8px',
+    fontSize: '14px',
+    fontWeight: '600',
+    cursor: 'pointer',
+    whiteSpace: 'nowrap',
+  },
+  confirmBox: {
+    backgroundColor: '#fff',
+    padding: '32px',
+    borderRadius: '12px',
+    boxShadow: '0 2px 10px rgba(0,0,0,0.08)',
+    maxWidth: '480px',
+  },
+  confirmTitle: {
+    fontSize: '20px',
+    fontWeight: '700',
+    color: '#2d6a4f',
+    marginBottom: '8px',
+  },
+  confirmSubtitle: {
+    fontSize: '14px',
+    color: '#888',
+    marginBottom: '24px',
+    lineHeight: '1.5',
+  },
+  field: {
+    marginBottom: '16px',
+  },
+  label: {
+    display: 'block',
+    fontSize: '14px',
+    fontWeight: '600',
+    color: '#555',
+    marginBottom: '6px',
+  },
+  input: {
+    width: '100%',
+    padding: '10px 14px',
+    borderRadius: '8px',
+    border: '1px solid #ddd',
+    fontSize: '14px',
+    outline: 'none',
+    boxSizing: 'border-box',
+  },
+  pinInput: {
+    width: '100%',
+    padding: '14px',
+    borderRadius: '8px',
+    border: '2px solid #2d6a4f',
+    fontSize: '24px',
+    textAlign: 'center',
+    letterSpacing: '8px',
+    outline: 'none',
+    boxSizing: 'border-box',
+  },
+  confirmBtn: {
+    width: '100%',
+    padding: '12px',
+    backgroundColor: '#2d6a4f',
+    color: '#fff',
+    border: 'none',
+    borderRadius: '8px',
+    fontSize: '16px',
+    fontWeight: '600',
+    cursor: 'pointer',
+    marginTop: '8px',
+  },
+};
+
+export default Books;
