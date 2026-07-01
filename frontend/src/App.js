@@ -1,6 +1,8 @@
 import React from 'react';
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { AuthProvider } from './context/AuthContext';
+import ForgotPassword from './pages/ForgotPassword';
+import ResetPassword from './pages/ResetPassword';
 
 // Pages
 import Login from './pages/Login';
@@ -20,9 +22,11 @@ function App() {
       <BrowserRouter>
         <Routes>
           {/* Public routes */}
-          <Route path="/login"      element={<Login />} />
-          <Route path="/register"   element={<Register />} />
-          <Route path="/verify-otp" element={<VerifyOTP />} />
+          <Route path="/login"           element={<Login />} />
+          <Route path="/register"        element={<Register />} />
+          <Route path="/verify-otp"      element={<VerifyOTP />} />
+          <Route path="/forgot-password" element={<ForgotPassword />} />
+          <Route path="/reset-password"  element={<ResetPassword />} />
 
           {/* Protected routes */}
           <Route path="/home"      element={<PrivateRoute><Home /></PrivateRoute>} />

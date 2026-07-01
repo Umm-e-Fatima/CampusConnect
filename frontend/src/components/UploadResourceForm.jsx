@@ -1,13 +1,13 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import axios from 'axios';
 import api from '../utils/api';
 
 const CLOUD_NAME = process.env.REACT_APP_CLOUDINARY_CLOUD_NAME;
 const UPLOAD_PRESET = process.env.REACT_APP_CLOUDINARY_UPLOAD_PRESET;
 
-const UploadResourceForm = ({ courses, onUploaded, onClose }) => {
+const UploadResourceForm = ({ onUploaded, onClose }) => {
   const [form, setForm] = useState({
-    course_id: '',
+    course_code: '',
     title: '',
     resource_type: 'notes',
     semester: '',
@@ -15,16 +15,26 @@ const UploadResourceForm = ({ courses, onUploaded, onClose }) => {
     listing_type: 'gift',
     price: '',
   });
+  const [suggestions, setSuggestions] = useState([]);
   const [file, setFile] = useState(null);
   const [uploading, setUploading] = useState(false);
   const [error, setError] = useState('');
 
+  // Fetch existing course codes for autosuggest
+  useEffect(() => {
+    const fetchSuggestions = async () => {
+      try {
+        const res = await api.get('/resources/distinct-courses');
+        setSuggestions(res.data);
+      } catch (err) {
+        // Non-critical — autosuggest just won't show
+      }
+    };
+    fetchSuggestions();
+  }, []);
+
   const handleChange = (e) => {
     setForm({ ...form, [e.target.name]: e.target.value });
-  };
-
-  const handleFileChange = (e) => {
-    setFile(e.target.files[0]);
   };
 
   const handleSubmit = async (e) => {
@@ -35,8 +45,8 @@ const UploadResourceForm = ({ courses, onUploaded, onClose }) => {
       setError('Please select a file or take a photo first');
       return;
     }
-    if (!form.course_id || !form.title) {
-      setError('Course and title are required');
+    if (!form.course_code.trim() || !form.title.trim()) {
+      setError('Course code and title are required');
       return;
     }
     if (form.listing_type !== 'gift' && !form.price) {
@@ -46,7 +56,7 @@ const UploadResourceForm = ({ courses, onUploaded, onClose }) => {
 
     setUploading(true);
     try {
-      // Step 1: Upload file directly to Cloudinary (unsigned)
+      // Step 1 — Upload file directly to Cloudinary
       const cloudForm = new FormData();
       cloudForm.append('file', file);
       cloudForm.append('upload_preset', UPLOAD_PRESET);
@@ -59,9 +69,9 @@ const UploadResourceForm = ({ courses, onUploaded, onClose }) => {
 
       const { secure_url, public_id, bytes } = cloudRes.data;
 
-      // Step 2: Save metadata to our backend
+      // Step 2 — Save metadata to backend
       await api.post('/resources', {
-        course_id: form.course_id,
+        course_code: form.course_code.trim().toUpperCase(),
         title: form.title,
         resource_type: form.resource_type,
         semester: form.semester ? parseInt(form.semester) : null,
@@ -100,21 +110,25 @@ const UploadResourceForm = ({ courses, onUploaded, onClose }) => {
         <form onSubmit={handleSubmit}>
 
           <div style={styles.field}>
-            <label style={styles.label}>Course</label>
-            <select
+            <label style={styles.label}>Course Code</label>
+            <input
               style={styles.input}
-              name="course_id"
-              value={form.course_id}
+              type="text"
+              name="course_code"
+              placeholder="e.g. CS-301"
+              value={form.course_code}
               onChange={handleChange}
+              list="course-suggestions"
               required
-            >
-              <option value="">Select a course</option>
-              {courses.map(c => (
-                <option key={c.id} value={c.id}>
-                  {c.course_code} — {c.course_name}
-                </option>
+            />
+            <datalist id="course-suggestions">
+              {suggestions.map(code => (
+                <option key={code} value={code} />
               ))}
-            </select>
+            </datalist>
+            <p style={styles.hint}>
+              Type your course code — previous codes will appear as suggestions
+            </p>
           </div>
 
           <div style={styles.field}>
@@ -170,15 +184,15 @@ const UploadResourceForm = ({ courses, onUploaded, onClose }) => {
               onChange={handleChange}
             >
               <option value="gift">Gift — Free for everyone</option>
-              <option value="borrow">Borrow — Rent per day</option>
-              <option value="buy">Buy — One-time purchase</option>
+              <option value="borrow">Borrow — Rent per day (PKR)</option>
+              <option value="buy">Buy — One-time purchase (PKR)</option>
             </select>
           </div>
 
           {form.listing_type !== 'gift' && (
             <div style={styles.field}>
               <label style={styles.label}>
-                Price (PKR) {form.listing_type === 'borrow' ? 'per day' : ''}
+                Price (PKR){form.listing_type === 'borrow' ? ' per day' : ''}
               </label>
               <input
                 style={styles.input}
@@ -191,7 +205,7 @@ const UploadResourceForm = ({ courses, onUploaded, onClose }) => {
                 required
               />
               <p style={styles.hint}>
-                Borrow/Buy purchases are not yet live — this listing will be visible but not purchasable until that feature ships.
+                Borrow/Buy purchases are not yet live — listing will be visible but not purchasable until Week 4 feature ships.
               </p>
             </div>
           )}
@@ -203,11 +217,10 @@ const UploadResourceForm = ({ courses, onUploaded, onClose }) => {
               type="file"
               accept="image/*,application/pdf"
               capture="environment"
-              onChange={handleFileChange}
-              required
+              onChange={(e) => setFile(e.target.files[0])}
             />
             <p style={styles.hint}>
-              Choose a file from your device, or use your camera to take a photo directly
+              Choose a PDF or image from your device, or use your camera to take a photo directly
             </p>
             {file && <p style={styles.fileName}>Selected: {file.name}</p>}
           </div>

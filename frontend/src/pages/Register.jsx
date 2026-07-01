@@ -82,11 +82,25 @@ const Register = () => {
               style={styles.input}
               type="password"
               name="password"
-              placeholder="Minimum 8 characters"
+              placeholder="Min 8 chars, uppercase, number, special character"
               value={form.password}
               onChange={handleChange}
               required
             />
+            {form.password.length > 0 && (
+              <div style={styles.requirementBox}>
+                {[
+                  { label: 'At least 8 characters',         met: form.password.length >= 8 },
+                  { label: 'At least one uppercase letter',  met: /[A-Z]/.test(form.password) },
+                  { label: 'At least one number',            met: /[0-9]/.test(form.password) },
+                  { label: 'At least one special character', met: /[!@#$%^&*(),.?":{}|<>]/.test(form.password) },
+                ].map(req => (
+                  <p key={req.label} style={req.met ? styles.reqMet : styles.reqUnmet}>
+                    {req.met ? '✓' : '✗'} {req.label}
+                  </p>
+                ))}
+              </div>
+            )}
           </div>
 
           <div style={styles.field}>
@@ -241,6 +255,22 @@ const styles = {
     fontWeight: '600',
     textDecoration: 'none',
   },
+  requirementBox: {
+  marginTop: '8px',
+  padding: '10px 14px',
+  backgroundColor: '#f9f9f9',
+  borderRadius: '8px',
+},
+reqMet: {
+  fontSize: '12px',
+  color: '#2d6a4f',
+  margin: '3px 0',
+},
+reqUnmet: {
+  fontSize: '12px',
+  color: '#c0392b',
+  margin: '3px 0',
+},
 };
 
 export default Register;

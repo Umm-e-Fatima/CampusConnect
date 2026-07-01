@@ -1,93 +1,87 @@
 import React, { useState } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
-import { useAuth } from '../context/AuthContext';
 import api from '../utils/api';
 
-const Login = () => {
-  const [form, setForm] = useState({ email: '', password: '' });
+const ForgotPassword = () => {
+  const [email, setEmail] = useState('');
+  const [submitted, setSubmitted] = useState(false);
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
-
-  const { login } = useAuth();
   const navigate = useNavigate();
-
-  const handleChange = (e) => {
-    setForm({ ...form, [e.target.name]: e.target.value });
-  };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
     setError('');
     setLoading(true);
-
     try {
-      const res = await api.post('/auth/login', form);
-      login(res.data.user, res.data.token);
-      navigate('/home');
+      await api.post('/auth/forgot-password', { email });
+      setSubmitted(true);
     } catch (err) {
-      setError(err.response?.data?.error || 'Login failed. Please try again.');
+      setError(err.response?.data?.error || 'Failed to send reset code');
     } finally {
       setLoading(false);
     }
   };
 
+  if (submitted) {
+    return (
+      <div style={styles.container}>
+        <div style={styles.card}>
+          <h1 style={styles.logo}>روشنی</h1>
+          <h2 style={styles.title}>Check Your Email</h2>
+          <p style={styles.subtitle}>
+            If <strong>{email}</strong> is registered, a reset code has been sent.
+            Check your inbox and enter the code on the next screen.
+          </p>
+          <button
+            style={styles.button}
+            onClick={() => navigate('/reset-password', { state: { email } })}
+          >
+            Enter Reset Code
+          </button>
+          <p style={styles.link}>
+            <Link to="/login" style={styles.linkText}>Back to Login</Link>
+          </p>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div style={styles.container}>
       <div style={styles.card}>
-
-        {/* Logo / Title */}
         <h1 style={styles.logo}>روشنی</h1>
-        <h2 style={styles.title}>Roshni</h2>
-        <p style={styles.subtitle}>Peer Learning Platform</p>
+        <h2 style={styles.title}>Forgot Password</h2>
+        <p style={styles.subtitle}>
+          Enter your university email and we will send you a reset code
+        </p>
 
-        {/* Error */}
         {error && <div style={styles.error}>{error}</div>}
 
-        {/* Form */}
         <form onSubmit={handleSubmit}>
           <div style={styles.field}>
             <label style={styles.label}>University Email</label>
             <input
               style={styles.input}
               type="email"
-              name="email"
-              placeholder="yourname@uog.edu.pk"
-              value={form.email}
-              onChange={handleChange}
+              placeholder="yourname@cs.lgu.edu.pk"
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
               required
             />
           </div>
-
-          <div style={styles.field}>
-            <label style={styles.label}>Password</label>
-            <input
-              style={styles.input}
-              type="password"
-              name="password"
-              placeholder="Enter your password"
-              value={form.password}
-              onChange={handleChange}
-              required
-            />
-          </div>
-
           <button
             style={loading ? { ...styles.button, opacity: 0.7 } : styles.button}
             type="submit"
             disabled={loading}
           >
-            {loading ? 'Logging in...' : 'Login'}
+            {loading ? 'Sending...' : 'Send Reset Code'}
           </button>
         </form>
 
         <p style={styles.link}>
-          <Link to="/forgot-password" style={styles.linkText}>Forgot password?</Link>
+          <Link to="/login" style={styles.linkText}>Back to Login</Link>
         </p>
-        <p style={styles.link}>
-          Don't have an account?{' '}
-          <Link to="/register" style={styles.linkText}>Register here</Link>
-        </p>
-
       </div>
     </div>
   );
@@ -100,6 +94,7 @@ const styles = {
     alignItems: 'center',
     justifyContent: 'center',
     backgroundColor: '#f0f4f8',
+    padding: '20px',
   },
   card: {
     backgroundColor: '#fff',
@@ -115,15 +110,16 @@ const styles = {
     marginBottom: '4px',
   },
   title: {
-    fontSize: '28px',
+    fontSize: '26px',
     fontWeight: '700',
     color: '#2d6a4f',
-    marginBottom: '4px',
+    marginBottom: '8px',
   },
   subtitle: {
     fontSize: '14px',
     color: '#888',
     marginBottom: '28px',
+    lineHeight: '1.6',
   },
   error: {
     backgroundColor: '#ffe5e5',
@@ -163,7 +159,6 @@ const styles = {
     fontSize: '16px',
     fontWeight: '600',
     cursor: 'pointer',
-    marginTop: '8px',
     marginBottom: '20px',
   },
   link: {
@@ -177,4 +172,4 @@ const styles = {
   },
 };
 
-export default Login;
+export default ForgotPassword;

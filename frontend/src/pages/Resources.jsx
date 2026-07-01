@@ -181,7 +181,6 @@ const Resources = () => {
       {/* Upload Modal */}
       {showUpload && (
         <UploadResourceForm
-          courses={courses}
           onClose={() => setShowUpload(false)}
           onUploaded={() => {
             setShowUpload(false);
