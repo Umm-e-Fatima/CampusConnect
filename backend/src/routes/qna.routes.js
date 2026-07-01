@@ -2,49 +2,66 @@ const router = require('express').Router();
 const pool = require('../config/db');
 const { authenticate } = require('../middleware/auth.middleware');
 
-// GET /api/qna?course_id=xxx — fetch all questions
+// GET /api/qna?course_code=CS-301
 router.get('/', authenticate, async (req, res) => {
-  const { course_id } = req.query;
+  const { course_code } = req.query;
   try {
+    const conditions = ['q.is_active = TRUE'];
+    const params = [];
+
+    if (course_code) {
+      params.push(course_code);
+      conditions.push(`q.course_code = $${params.length}`);
+    }
+
     const result = await pool.query(
       `SELECT q.id, q.body, q.upvote_count, q.is_resolved,
-              q.created_at, c.course_code,
+              q.created_at, q.course_code,
               CASE WHEN q.is_anonymous THEN 'Anonymous'
                    ELSE u.full_name END as author_name
        FROM questions q
        JOIN users u ON q.author_id = u.id
-       JOIN courses c ON q.course_id = c.id
-       WHERE q.is_active = TRUE
-         AND c.university_id = $1
-         ${course_id ? 'AND q.course_id = $2' : ''}
+       WHERE ${conditions.join(' AND ')}
        ORDER BY q.upvote_count DESC, q.created_at DESC`,
-      course_id ? [req.user.university_id, course_id] : [req.user.university_id]
+      params
     );
     res.json(result.rows);
   } catch (err) {
+    console.error(err);
     res.status(500).json({ error: 'Failed to fetch questions' });
   }
 });
 
-// GET /api/qna/:id — single question with its answers
+// GET /api/qna/distinct-courses — for autosuggest
+router.get('/distinct-courses', authenticate, async (req, res) => {
+  try {
+    const result = await pool.query(
+      `SELECT DISTINCT course_code FROM questions
+       WHERE course_code IS NOT NULL
+       ORDER BY course_code`
+    );
+    res.json(result.rows.map(r => r.course_code));
+  } catch (err) {
+    res.status(500).json({ error: 'Failed to fetch course codes' });
+  }
+});
+
+// GET /api/qna/:id — single question with answers
 router.get('/:id', authenticate, async (req, res) => {
   try {
-    // Fetch question
     const question = await pool.query(
       `SELECT q.id, q.body, q.upvote_count, q.is_resolved,
-              q.created_at, c.course_code,
+              q.created_at, q.course_code,
               CASE WHEN q.is_anonymous THEN 'Anonymous'
                    ELSE u.full_name END as author_name
        FROM questions q
        JOIN users u ON q.author_id = u.id
-       JOIN courses c ON q.course_id = c.id
        WHERE q.id = $1 AND q.is_active = TRUE`,
       [req.params.id]
     );
     if (question.rows.length === 0)
       return res.status(404).json({ error: 'Question not found' });
 
-    // Fetch answers for this question
     const answers = await pool.query(
       `SELECT a.id, a.body, a.upvote_count, a.is_accepted,
               a.created_at,
@@ -63,26 +80,27 @@ router.get('/:id', authenticate, async (req, res) => {
   }
 });
 
-// POST /api/qna — post a new anonymous question
+// POST /api/qna — post anonymous question
 router.post('/', authenticate, async (req, res) => {
-  const { course_id, body } = req.body;
+  const { course_code, body } = req.body;
 
-  if (!course_id || !body)
-    return res.status(400).json({ error: 'course_id and body are required' });
+  if (!course_code || !body)
+    return res.status(400).json({ error: 'course_code and body are required' });
 
   try {
     const result = await pool.query(
-      `INSERT INTO questions (author_id, course_id, body)
+      `INSERT INTO questions (author_id, course_code, body)
        VALUES ($1,$2,$3) RETURNING *`,
-      [req.user.id, course_id, body]
+      [req.user.id, course_code.trim().toUpperCase(), body]
     );
     res.status(201).json({ ...result.rows[0], author_name: 'Anonymous' });
   } catch (err) {
+    console.error(err);
     res.status(500).json({ error: 'Failed to post question' });
   }
 });
 
-// POST /api/qna/:id/answers — post an answer to a question
+// POST /api/qna/:id/answers
 router.post('/:id/answers', authenticate, async (req, res) => {
   const { body } = req.body;
 
@@ -101,9 +119,9 @@ router.post('/:id/answers', authenticate, async (req, res) => {
   }
 });
 
-// POST /api/qna/:id/upvote — upvote a question or answer
+// POST /api/qna/:id/upvote
 router.post('/:id/upvote', authenticate, async (req, res) => {
-  const { target_type } = req.body; // 'question' or 'answer'
+  const { target_type } = req.body;
 
   if (!target_type || !['question', 'answer'].includes(target_type))
     return res.status(400).json({ error: 'target_type must be question or answer' });
@@ -113,13 +131,11 @@ router.post('/:id/upvote', authenticate, async (req, res) => {
       'INSERT INTO upvotes (user_id, target_type, target_id) VALUES ($1,$2,$3)',
       [req.user.id, target_type, req.params.id]
     );
-
     const table = target_type === 'question' ? 'questions' : 'answers';
     await pool.query(
       `UPDATE ${table} SET upvote_count = upvote_count + 1 WHERE id = $1`,
       [req.params.id]
     );
-
     res.json({ message: 'Upvoted successfully' });
   } catch (err) {
     if (err.code === '23505')
@@ -128,7 +144,7 @@ router.post('/:id/upvote', authenticate, async (req, res) => {
   }
 });
 
-// PATCH /api/qna/:id/resolve — question author marks as resolved
+// PATCH /api/qna/:id/resolve
 router.patch('/:id/resolve', authenticate, async (req, res) => {
   try {
     const result = await pool.query(

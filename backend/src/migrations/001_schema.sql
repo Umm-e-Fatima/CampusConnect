@@ -70,7 +70,7 @@ CREATE INDEX IF NOT EXISTS idx_sessions_token ON sessions(token_hash);
 CREATE TABLE IF NOT EXISTS resources (
   id             UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
   uploaded_by    UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
-  course_id      UUID NOT NULL REFERENCES courses(id) ON DELETE CASCADE,
+  course_code    VARCHAR(30) NOT NULL,
   title          VARCHAR(255) NOT NULL,
   resource_type  VARCHAR(30) CHECK (resource_type IN ('notes', 'past_paper', 'other')),
   semester       SMALLINT,
@@ -99,7 +99,7 @@ CREATE TABLE IF NOT EXISTS book_listings (
   university_id UUID NOT NULL REFERENCES universities(id),
   title         VARCHAR(255) NOT NULL,
   author        VARCHAR(255),
-  course_id     UUID REFERENCES courses(id) ON DELETE SET NULL,
+  course_code   VARCHAR(30),
   condition     VARCHAR(20) CHECK (condition IN ('new', 'good', 'fair', 'poor')),
   listing_type  VARCHAR(10) NOT NULL CHECK (listing_type IN ('paid', 'gift', 'borrow')),
   price         NUMERIC(8,2),
@@ -160,7 +160,7 @@ CREATE INDEX IF NOT EXISTS idx_resource_requests_requester ON resource_requests(
 CREATE TABLE IF NOT EXISTS questions (
   id           UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
   author_id    UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
-  course_id    UUID NOT NULL REFERENCES courses(id) ON DELETE CASCADE,
+  course_code  VARCHAR(30) NOT NULL,
   body         TEXT NOT NULL,
   is_anonymous BOOLEAN DEFAULT TRUE,
   upvote_count INTEGER DEFAULT 0,
