@@ -147,7 +147,8 @@ CREATE TABLE IF NOT EXISTS resource_requests (
   seller_confirmed     BOOLEAN DEFAULT FALSE,
   download_token       VARCHAR(255),
   download_expires_at  TIMESTAMPTZ,
-  download_used        BOOLEAN DEFAULT FALSE,
+  download_count       INTEGER DEFAULT 0,
+  download_expires_at  TIMESTAMPTZ,
   status               VARCHAR(20) DEFAULT 'pending' CHECK (status IN ('pending', 'pin_issued', 'completed', 'cancelled')),
   created_at           TIMESTAMPTZ DEFAULT NOW(),
   updated_at           TIMESTAMPTZ DEFAULT NOW()

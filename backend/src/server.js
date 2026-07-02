@@ -13,11 +13,12 @@ app.use(rateLimit({ windowMs: 15 * 60 * 1000, max: 100 }));
 app.use(express.json());
 
 //  Routes 
-app.use('/api/auth',      require('./routes/auth.routes'));
-app.use('/api/courses',   require('./routes/course.routes'));
-app.use('/api/resources', require('./routes/resource.routes'));
-app.use('/api/books',     require('./routes/book.routes'));
-app.use('/api/qna',       require('./routes/qna.routes'));
+app.use('/api/auth',              require('./routes/auth.routes'));
+app.use('/api/courses',           require('./routes/course.routes'));
+app.use('/api/resources',         require('./routes/resource.routes'));
+app.use('/api/books',             require('./routes/book.routes'));
+app.use('/api/qna',               require('./routes/qna.routes'));
+app.use('/api/resource-requests', require('./routes/resource_request.routes'));
 
 //  Health Check 
 app.get('/health', (req, res) => res.json({ status: 'ok', service: 'roshni-api' }));

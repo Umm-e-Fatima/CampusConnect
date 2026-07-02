@@ -59,6 +59,14 @@ const Home = () => {
           <span style={styles.cardLink}>Browse Questions</span>
         </div>
 
+        <div style={styles.card} onClick={() => navigate('/resource-requests')}>
+          <h2 style={styles.cardTitle}>My Requests</h2>
+          <p style={styles.cardText}>
+            Track your paid resource purchases and confirm payments as a seller
+          </p>
+          <span style={styles.cardLink}>View Requests</span>
+        </div>
+
       </div>
     </div>
   );
