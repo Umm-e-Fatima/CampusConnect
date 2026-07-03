@@ -1,6 +1,69 @@
 import React, { useState } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import api from '../utils/api';
+import { Button, Field, Input, Select, Alert } from '../components/UI';
+
+const validatePassword = (password) => {
+  const rules = [
+    { label: 'At least 8 characters',         met: password.length >= 8 },
+    { label: 'At least one uppercase letter',  met: /[A-Z]/.test(password) },
+    { label: 'At least one number',            met: /[0-9]/.test(password) },
+    { label: 'At least one special character', met: /[!@#$%^&*(),.?":{}|<>]/.test(password) },
+  ];
+  return rules;
+};
+
+const PasswordStrength = ({ password }) => {
+  if (!password) return null;
+  const rules = validatePassword(password);
+  const metCount = rules.filter(r => r.met).length;
+  const strengthLabel = ['', 'Weak', 'Fair', 'Good', 'Strong'][metCount];
+  const strengthColor = ['', '#e53e3e', '#f0a500', '#2b6cb0', '#2d6a4f'][metCount];
+  const barWidth = `${(metCount / 4) * 100}%`;
+
+  return (
+    <div style={{ marginTop: '8px' }}>
+      {/* Strength bar */}
+      <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '8px' }}>
+        <div style={{
+          flex: 1,
+          height: '4px',
+          backgroundColor: '#eef1f6',
+          borderRadius: '2px',
+          overflow: 'hidden',
+        }}>
+          <div style={{
+            height: '100%',
+            width: barWidth,
+            backgroundColor: strengthColor,
+            borderRadius: '2px',
+            transition: 'width 0.3s, background-color 0.3s',
+          }} />
+        </div>
+        <span style={{ fontSize: '12px', fontWeight: '600', color: strengthColor, minWidth: '40px' }}>
+          {strengthLabel}
+        </span>
+      </div>
+      {/* Rules checklist */}
+      <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+        {rules.map(rule => (
+          <div key={rule.label} style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+            <span style={{
+              fontSize: '12px',
+              fontWeight: '700',
+              color: rule.met ? '#2d6a4f' : '#cbd5e0',
+            }}>
+              {rule.met ? '✓' : '○'}
+            </span>
+            <span style={{ fontSize: '12px', color: rule.met ? '#2d6a4f' : 'var(--text-muted)' }}>
+              {rule.label}
+            </span>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+};
 
 const Register = () => {
   const [form, setForm] = useState({
@@ -22,14 +85,19 @@ const Register = () => {
   const handleSubmit = async (e) => {
     e.preventDefault();
     setError('');
-    setLoading(true);
 
+    const rules = validatePassword(form.password);
+    if (rules.some(r => !r.met)) {
+      setError('Please meet all password requirements');
+      return;
+    }
+
+    setLoading(true);
     try {
       await api.post('/auth/register', {
         ...form,
-        semester: parseInt(form.semester),
+        semester: form.semester ? parseInt(form.semester) : null,
       });
-      // Redirect to OTP verification, pass email via state
       navigate('/verify-otp', { state: { email: form.email } });
     } catch (err) {
       setError(err.response?.data?.error || 'Registration failed. Please try again.');
@@ -39,128 +107,138 @@ const Register = () => {
   };
 
   return (
-    <div style={styles.container}>
-      <div style={styles.card}>
+    <div style={styles.page}>
+      <div style={styles.container}>
 
-        <h1 style={styles.logo}>روشنی</h1>
-        <h2 style={styles.title}>Create Account</h2>
-        <p style={styles.subtitle}>Use your university email to register</p>
-
-        {error && <div style={styles.error}>{error}</div>}
-
-        <form onSubmit={handleSubmit}>
-
-          <div style={styles.field}>
-            <label style={styles.label}>Full Name</label>
-            <input
-              style={styles.input}
-              type="text"
-              name="full_name"
-              placeholder="Your full name"
-              value={form.full_name}
-              onChange={handleChange}
-              required
-            />
+        {/* Logo */}
+        <div style={styles.logoRow}>
+          <div style={styles.logoIcon}>
+            <svg width="22" height="22" viewBox="0 0 24 24" fill="none"
+              stroke="#ffffff" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+              <path d="M22 10v6M2 10l10-5 10 5-10 5z"/>
+              <path d="M6 12v5c3 3 9 3 12 0v-5"/>
+            </svg>
           </div>
+          <span style={styles.logoText}>
+            <span style={styles.logoNavy}>Campus</span>
+            <span style={styles.logoGold}>Connect</span>
+          </span>
+        </div>
 
-          <div style={styles.field}>
-            <label style={styles.label}>University Email</label>
-            <input
-              style={styles.input}
-              type="email"
-              name="email"
-              placeholder="yourname@uog.edu.pk"
-              value={form.email}
-              onChange={handleChange}
-              required
-            />
-          </div>
+        <p style={styles.tagline}>Learn Together, Grow Together</p>
 
-          <div style={styles.field}>
-            <label style={styles.label}>Password</label>
-            <input
-              style={styles.input}
-              type="password"
-              name="password"
-              placeholder="Min 8 chars, uppercase, number, special character"
-              value={form.password}
-              onChange={handleChange}
-              required
-            />
-            {form.password.length > 0 && (
-              <div style={styles.requirementBox}>
-                {[
-                  { label: 'At least 8 characters',         met: form.password.length >= 8 },
-                  { label: 'At least one uppercase letter',  met: /[A-Z]/.test(form.password) },
-                  { label: 'At least one number',            met: /[0-9]/.test(form.password) },
-                  { label: 'At least one special character', met: /[!@#$%^&*(),.?":{}|<>]/.test(form.password) },
-                ].map(req => (
-                  <p key={req.label} style={req.met ? styles.reqMet : styles.reqUnmet}>
-                    {req.met ? '✓' : '✗'} {req.label}
-                  </p>
-                ))}
-              </div>
-            )}
-          </div>
+        {/* Card */}
+        <div style={styles.card}>
+          <h2 style={styles.cardTitle}>Create account</h2>
+          <p style={styles.cardSubtitle}>
+            Join your campus community on CampusConnect
+          </p>
 
-          <div style={styles.field}>
-            <label style={styles.label}>Gender</label>
-            <select
-              style={styles.input}
-              name="gender"
-              value={form.gender}
-              onChange={handleChange}
-              required
-            >
-              <option value="">Select gender</option>
-              <option value="female">Female</option>
-              <option value="male">Male</option>
-              <option value="prefer_not_to_say">Prefer not to say</option>
-            </select>
-          </div>
+          {error && (
+            <Alert type="error" style={{ marginBottom: '16px' }}>
+              {error}
+            </Alert>
+          )}
 
-          <div style={styles.row}>
-            <div style={{ ...styles.field, flex: 1, marginRight: '10px' }}>
-              <label style={styles.label}>Department</label>
-              <input
-                style={styles.input}
+          <form onSubmit={handleSubmit}>
+
+            <Field label="Full Name" htmlFor="full_name">
+              <Input
+                id="full_name"
+                name="full_name"
                 type="text"
-                name="department"
-                placeholder="e.g. Computer Science"
-                value={form.department}
+                placeholder="Your full name"
+                value={form.full_name}
                 onChange={handleChange}
+                required
               />
-            </div>
+            </Field>
 
-            <div style={{ ...styles.field, flex: 1 }}>
-              <label style={styles.label}>Semester</label>
-              <select
-                style={styles.input}
-                name="semester"
-                value={form.semester}
+            <Field label="University Email" htmlFor="email">
+              <Input
+                id="email"
+                name="email"
+                type="email"
+                placeholder="you@university.edu.pk"
+                value={form.email}
                 onChange={handleChange}
+                autoComplete="email"
+                required
+              />
+            </Field>
+
+            <Field label="Password" htmlFor="password">
+              <Input
+                id="password"
+                name="password"
+                type="password"
+                placeholder="Create a strong password"
+                value={form.password}
+                onChange={handleChange}
+                required
+              />
+              <PasswordStrength password={form.password} />
+            </Field>
+
+            <Field label="Gender" htmlFor="gender">
+              <Select
+                id="gender"
+                name="gender"
+                value={form.gender}
+                onChange={handleChange}
+                required
               >
-                <option value="">Select</option>
-                {[1,2,3,4,5,6,7,8].map(s => (
-                  <option key={s} value={s}>{s}</option>
-                ))}
-              </select>
+                <option value="">Select gender</option>
+                <option value="female">Female</option>
+                <option value="male">Male</option>
+                <option value="prefer_not_to_say">Prefer not to say</option>
+              </Select>
+            </Field>
+
+            <div style={styles.row}>
+              <Field label="Department" htmlFor="department" style={{ flex: 1, marginRight: '12px' }}>
+                <Input
+                  id="department"
+                  name="department"
+                  type="text"
+                  placeholder="e.g. Computer Science"
+                  value={form.department}
+                  onChange={handleChange}
+                />
+              </Field>
+
+              <Field label="Semester" htmlFor="semester" style={{ width: '120px' }}>
+                <Select
+                  id="semester"
+                  name="semester"
+                  value={form.semester}
+                  onChange={handleChange}
+                >
+                  <option value="">Select</option>
+                  {[1,2,3,4,5,6,7,8].map(s => (
+                    <option key={s} value={s}>{s}</option>
+                  ))}
+                </Select>
+              </Field>
             </div>
-          </div>
 
-          <button
-            style={loading ? { ...styles.button, opacity: 0.7 } : styles.button}
-            type="submit"
-            disabled={loading}
-          >
-            {loading ? 'Registering...' : 'Create Account'}
-          </button>
+            <Button
+              type="submit"
+              fullWidth
+              disabled={loading}
+              style={{ marginTop: '8px' }}
+            >
+              {loading ? 'Creating account...' : 'Create Account'}
+            </Button>
 
-        </form>
+          </form>
+        </div>
 
-        <p style={styles.link}>
+        <p style={styles.loginText}>
           Already have an account?{' '}
-          <Link to="/login" style={styles.linkText}>Login here</Link>
+          <Link to="/login" style={styles.linkBold}>
+            Login here
+          </Link>
         </p>
 
       </div>
@@ -169,108 +247,88 @@ const Register = () => {
 };
 
 const styles = {
-  container: {
+  page: {
     minHeight: '100vh',
+    backgroundColor: 'var(--background)',
     display: 'flex',
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: '#f0f4f8',
-    padding: '20px',
+    padding: '24px',
   },
-  card: {
-    backgroundColor: '#fff',
-    padding: '40px',
-    borderRadius: '12px',
-    boxShadow: '0 4px 20px rgba(0,0,0,0.1)',
+  container: {
     width: '100%',
     maxWidth: '480px',
-    textAlign: 'center',
+    display: 'flex',
+    flexDirection: 'column',
+    alignItems: 'center',
   },
-  logo: {
-    fontSize: '48px',
-    marginBottom: '4px',
+  logoRow: {
+    display: 'flex',
+    alignItems: 'center',
+    gap: '10px',
+    marginBottom: '8px',
   },
-  title: {
+  logoIcon: {
+    width: '44px',
+    height: '44px',
+    backgroundColor: 'var(--primary)',
+    borderRadius: '10px',
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  logoText: {
     fontSize: '26px',
-    fontWeight: '700',
-    color: '#2d6a4f',
-    marginBottom: '4px',
+    fontFamily: 'Plus Jakarta Sans, sans-serif',
+    fontWeight: '800',
+    letterSpacing: '-0.5px',
   },
-  subtitle: {
+  logoNavy: {
+    color: 'var(--primary)',
+  },
+  logoGold: {
+    color: 'var(--accent)',
+  },
+  tagline: {
     fontSize: '14px',
-    color: '#888',
+    color: 'var(--text-secondary)',
     marginBottom: '28px',
   },
-  error: {
-    backgroundColor: '#ffe5e5',
-    color: '#c0392b',
-    padding: '10px',
-    borderRadius: '8px',
-    marginBottom: '16px',
-    fontSize: '14px',
+  card: {
+    width: '100%',
+    backgroundColor: 'var(--surface)',
+    borderRadius: 'var(--radius-lg)',
+    border: '1px solid var(--border)',
+    padding: '32px',
+    boxShadow: 'var(--shadow-sm)',
+    marginBottom: '20px',
   },
-  field: {
-    marginBottom: '16px',
-    textAlign: 'left',
+  cardTitle: {
+    fontSize: '20px',
+    fontWeight: '700',
+    color: 'var(--text-primary)',
+    fontFamily: 'Plus Jakarta Sans, sans-serif',
+    marginBottom: '4px',
+  },
+  cardSubtitle: {
+    fontSize: '14px',
+    color: 'var(--text-secondary)',
+    marginBottom: '24px',
   },
   row: {
     display: 'flex',
-    flexDirection: 'row',
+    alignItems: 'flex-start',
   },
-  label: {
-    display: 'block',
+  loginText: {
     fontSize: '14px',
-    fontWeight: '600',
-    color: '#555',
-    marginBottom: '6px',
+    color: 'var(--text-secondary)',
+    textAlign: 'center',
   },
-  input: {
-    width: '100%',
-    padding: '10px 14px',
-    borderRadius: '8px',
-    border: '1px solid #ddd',
-    fontSize: '14px',
-    outline: 'none',
-    boxSizing: 'border-box',
-  },
-  button: {
-    width: '100%',
-    padding: '12px',
-    backgroundColor: '#2d6a4f',
-    color: '#fff',
-    border: 'none',
-    borderRadius: '8px',
-    fontSize: '16px',
-    fontWeight: '600',
-    cursor: 'pointer',
-    marginTop: '8px',
-    marginBottom: '20px',
-  },
-  link: {
-    fontSize: '14px',
-    color: '#666',
-  },
-  linkText: {
-    color: '#2d6a4f',
-    fontWeight: '600',
+  linkBold: {
+    color: 'var(--primary)',
+    fontWeight: '700',
     textDecoration: 'none',
   },
-  requirementBox: {
-  marginTop: '8px',
-  padding: '10px 14px',
-  backgroundColor: '#f9f9f9',
-  borderRadius: '8px',
-},
-reqMet: {
-  fontSize: '12px',
-  color: '#2d6a4f',
-  margin: '3px 0',
-},
-reqUnmet: {
-  fontSize: '12px',
-  color: '#c0392b',
-  margin: '3px 0',
-},
 };
 
 export default Register;

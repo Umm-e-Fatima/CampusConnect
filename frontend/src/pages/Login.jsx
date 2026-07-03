@@ -2,12 +2,12 @@ import React, { useState } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import api from '../utils/api';
+import { Button, Field, Input, Alert } from '../components/UI';
 
 const Login = () => {
   const [form, setForm] = useState({ email: '', password: '' });
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
-
   const { login } = useAuth();
   const navigate = useNavigate();
 
@@ -19,7 +19,6 @@ const Login = () => {
     e.preventDefault();
     setError('');
     setLoading(true);
-
     try {
       const res = await api.post('/auth/login', form);
       login(res.data.user, res.data.token);
@@ -32,60 +31,86 @@ const Login = () => {
   };
 
   return (
-    <div style={styles.container}>
-      <div style={styles.card}>
+    <div style={styles.page}>
+      <div style={styles.container}>
 
-        {/* Logo / Title */}
-        <h1 style={styles.logo}>روشنی</h1>
-        <h2 style={styles.title}>Roshni</h2>
-        <p style={styles.subtitle}>Peer Learning Platform</p>
-
-        {/* Error */}
-        {error && <div style={styles.error}>{error}</div>}
-
-        {/* Form */}
-        <form onSubmit={handleSubmit}>
-          <div style={styles.field}>
-            <label style={styles.label}>University Email</label>
-            <input
-              style={styles.input}
-              type="email"
-              name="email"
-              placeholder="yourname@uog.edu.pk"
-              value={form.email}
-              onChange={handleChange}
-              required
-            />
+        {/* Logo */}
+        <div style={styles.logoRow}>
+          <div style={styles.logoIcon}>
+            <svg width="22" height="22" viewBox="0 0 24 24" fill="none"
+              stroke="#ffffff" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+              <path d="M22 10v6M2 10l10-5 10 5-10 5z"/>
+              <path d="M6 12v5c3 3 9 3 12 0v-5"/>
+            </svg>
           </div>
+          <span style={styles.logoText}>
+            <span style={styles.logoNavy}>Campus</span>
+            <span style={styles.logoGold}>Connect</span>
+          </span>
+        </div>
 
-          <div style={styles.field}>
-            <label style={styles.label}>Password</label>
-            <input
-              style={styles.input}
-              type="password"
-              name="password"
-              placeholder="Enter your password"
-              value={form.password}
-              onChange={handleChange}
-              required
-            />
+        <p style={styles.tagline}>Learn Together, Grow Together</p>
+
+        {/* Card */}
+        <div style={styles.card}>
+          <h2 style={styles.cardTitle}>Welcome back</h2>
+          <p style={styles.cardSubtitle}>Sign in to your CampusConnect account</p>
+
+          {error && (
+            <Alert type="error" style={{ marginBottom: '16px' }}>
+              {error}
+            </Alert>
+          )}
+
+          <form onSubmit={handleSubmit}>
+            <Field label="University Email" htmlFor="email">
+              <Input
+                id="email"
+                name="email"
+                type="email"
+                placeholder="you@university.edu.pk"
+                value={form.email}
+                onChange={handleChange}
+                autoComplete="email"
+                required
+              />
+            </Field>
+
+            <Field label="Password" htmlFor="password">
+              <Input
+                id="password"
+                name="password"
+                type="password"
+                placeholder="Enter your password"
+                value={form.password}
+                onChange={handleChange}
+                autoComplete="current-password"
+                required
+              />
+            </Field>
+
+            <Button
+              type="submit"
+              fullWidth
+              disabled={loading}
+              style={{ marginTop: '8px' }}
+            >
+              {loading ? 'Signing in...' : 'Login'}
+            </Button>
+          </form>
+
+          <div style={{ textAlign: 'center', marginTop: '16px' }}>
+            <Link to="/forgot-password" style={styles.link}>
+              Forgot password?
+            </Link>
           </div>
+        </div>
 
-          <button
-            style={loading ? { ...styles.button, opacity: 0.7 } : styles.button}
-            type="submit"
-            disabled={loading}
-          >
-            {loading ? 'Logging in...' : 'Login'}
-          </button>
-        </form>
-
-        <p style={styles.link}>
-          <Link to="/forgot-password" style={styles.linkText}>Forgot password?</Link>
-        </p>
-        <p style={styles.link}>
+        <p style={styles.registerText}>
           Don't have an account?{' '}
-          <Link to="/register" style={styles.linkText}>Register here</Link>
+          <Link to="/register" style={styles.linkBold}>
+            Register here
+          </Link>
         </p>
 
       </div>
@@ -94,85 +119,88 @@ const Login = () => {
 };
 
 const styles = {
-  container: {
+  page: {
     minHeight: '100vh',
+    backgroundColor: 'var(--background)',
     display: 'flex',
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: '#f0f4f8',
+    padding: '24px',
   },
-  card: {
-    backgroundColor: '#fff',
-    padding: '40px',
-    borderRadius: '12px',
-    boxShadow: '0 4px 20px rgba(0,0,0,0.1)',
+  container: {
     width: '100%',
-    maxWidth: '420px',
-    textAlign: 'center',
+    maxWidth: '480px',
+    display: 'flex',
+    flexDirection: 'column',
+    alignItems: 'center',
   },
-  logo: {
-    fontSize: '48px',
-    marginBottom: '4px',
+  logoRow: {
+    display: 'flex',
+    alignItems: 'center',
+    gap: '10px',
+    marginBottom: '8px',
   },
-  title: {
-    fontSize: '28px',
-    fontWeight: '700',
-    color: '#2d6a4f',
-    marginBottom: '4px',
+  logoIcon: {
+    width: '44px',
+    height: '44px',
+    backgroundColor: 'var(--primary)',
+    borderRadius: '10px',
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'center',
   },
-  subtitle: {
+  logoText: {
+    fontSize: '26px',
+    fontFamily: 'Plus Jakarta Sans, sans-serif',
+    fontWeight: '800',
+    letterSpacing: '-0.5px',
+  },
+  logoNavy: {
+    color: 'var(--primary)',
+  },
+  logoGold: {
+    color: 'var(--accent)',
+  },
+  tagline: {
     fontSize: '14px',
-    color: '#888',
+    color: 'var(--text-secondary)',
     marginBottom: '28px',
   },
-  error: {
-    backgroundColor: '#ffe5e5',
-    color: '#c0392b',
-    padding: '10px',
-    borderRadius: '8px',
-    marginBottom: '16px',
-    fontSize: '14px',
-  },
-  field: {
-    marginBottom: '16px',
-    textAlign: 'left',
-  },
-  label: {
-    display: 'block',
-    fontSize: '14px',
-    fontWeight: '600',
-    color: '#555',
-    marginBottom: '6px',
-  },
-  input: {
+  card: {
     width: '100%',
-    padding: '10px 14px',
-    borderRadius: '8px',
-    border: '1px solid #ddd',
-    fontSize: '14px',
-    outline: 'none',
-    boxSizing: 'border-box',
-  },
-  button: {
-    width: '100%',
-    padding: '12px',
-    backgroundColor: '#2d6a4f',
-    color: '#fff',
-    border: 'none',
-    borderRadius: '8px',
-    fontSize: '16px',
-    fontWeight: '600',
-    cursor: 'pointer',
-    marginTop: '8px',
+    backgroundColor: 'var(--surface)',
+    borderRadius: 'var(--radius-lg)',
+    border: '1px solid var(--border)',
+    padding: '32px',
+    boxShadow: 'var(--shadow-sm)',
     marginBottom: '20px',
+  },
+  cardTitle: {
+    fontSize: '20px',
+    fontWeight: '700',
+    color: 'var(--text-primary)',
+    fontFamily: 'Plus Jakarta Sans, sans-serif',
+    marginBottom: '4px',
+  },
+  cardSubtitle: {
+    fontSize: '14px',
+    color: 'var(--text-secondary)',
+    marginBottom: '24px',
   },
   link: {
     fontSize: '14px',
-    color: '#666',
-  },
-  linkText: {
-    color: '#2d6a4f',
+    color: 'var(--primary)',
     fontWeight: '600',
+    textDecoration: 'none',
+  },
+  registerText: {
+    fontSize: '14px',
+    color: 'var(--text-secondary)',
+    textAlign: 'center',
+  },
+  linkBold: {
+    color: 'var(--primary)',
+    fontWeight: '700',
     textDecoration: 'none',
   },
 };
