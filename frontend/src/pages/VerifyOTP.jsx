@@ -1,24 +1,21 @@
 import React, { useState } from 'react';
 import { useNavigate, useLocation, Link } from 'react-router-dom';
 import api from '../utils/api';
+import { Button, Field, Alert, Logo } from '../components/UI';
 
 const VerifyOTP = () => {
   const [otp, setOtp] = useState('');
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
   const [loading, setLoading] = useState(false);
-
   const navigate = useNavigate();
   const location = useLocation();
-
-  // Email passed from Register page
   const email = location.state?.email || '';
 
   const handleSubmit = async (e) => {
     e.preventDefault();
     setError('');
     setLoading(true);
-
     try {
       await api.post('/auth/verify-otp', { email, otp });
       setSuccess('Email verified! Redirecting to login...');
@@ -31,49 +28,76 @@ const VerifyOTP = () => {
   };
 
   return (
-    <div style={styles.container}>
-      <div style={styles.card}>
+    <div style={styles.page}>
+      <div style={styles.container}>
 
-        <h1 style={styles.logo}>روشنی</h1>
-        <h2 style={styles.title}>Verify Your Email</h2>
-        <p style={styles.subtitle}>
-          We sent a 6-digit code to{' '}
-          <strong>{email || 'your university email'}</strong>
-        </p>
+        <Logo size="md" />
+        <p style={styles.tagline}>Learn Together, Grow Together</p>
 
-        {error   && <div style={styles.error}>{error}</div>}
-        {success && <div style={styles.success}>{success}</div>}
+        <div style={styles.card}>
+          <h2 style={styles.cardTitle}>Verify your email</h2>
+          <p style={styles.cardSubtitle}>
+            We sent a 6-digit code to{' '}
+            <strong style={{ color: 'var(--primary)' }}>
+              {email || 'your university email'}
+            </strong>
+          </p>
 
-        <form onSubmit={handleSubmit}>
-          <div style={styles.field}>
-            <label style={styles.label}>Enter OTP Code</label>
-            <input
-              style={styles.otpInput}
-              type="text"
-              name="otp"
-              placeholder="e.g. 847291"
-              value={otp}
-              onChange={(e) => setOtp(e.target.value)}
-              maxLength={6}
-              required
-            />
-            <p style={styles.hint}>
-              Check your terminal — OTP is printed there during development
-            </p>
+          {error && (
+            <Alert type="error" style={{ marginBottom: '16px' }}>
+              {error}
+            </Alert>
+          )}
+          {success && (
+            <Alert type="success" style={{ marginBottom: '16px' }}>
+              {success}
+            </Alert>
+          )}
+
+          <form onSubmit={handleSubmit}>
+            <Field
+              label="Verification Code"
+              htmlFor="otp"
+              hint="Check your terminal — OTP prints there during development"
+            >
+              <input
+                id="otp"
+                type="text"
+                inputMode="numeric"
+                placeholder="000000"
+                value={otp}
+                onChange={(e) => setOtp(e.target.value)}
+                maxLength={6}
+                required
+                style={styles.otpInput}
+                onFocus={e => e.target.style.borderColor = 'var(--primary)'}
+                onBlur={e => e.target.style.borderColor = 'var(--border)'}
+              />
+            </Field>
+
+            <Button
+              type="submit"
+              fullWidth
+              size="lg"
+              disabled={loading || otp.length < 6}
+              style={{ marginTop: '4px' }}
+            >
+              {loading ? 'Verifying...' : 'Verify Email'}
+            </Button>
+          </form>
+
+          <div style={{ textAlign: 'center', marginTop: '16px' }}>
+            <Link to="/register" style={styles.link}>
+              Wrong email? Go back
+            </Link>
           </div>
+        </div>
 
-          <button
-            style={loading ? { ...styles.button, opacity: 0.7 } : styles.button}
-            type="submit"
-            disabled={loading}
-          >
-            {loading ? 'Verifying...' : 'Verify Email'}
-          </button>
-        </form>
-
-        <p style={styles.link}>
-          Wrong email?{' '}
-          <Link to="/register" style={styles.linkText}>Go back</Link>
+        <p style={styles.bottomText}>
+          Already verified?{' '}
+          <Link to="/login" style={styles.linkBold}>
+            Login here
+          </Link>
         </p>
 
       </div>
@@ -82,102 +106,79 @@ const VerifyOTP = () => {
 };
 
 const styles = {
-  container: {
+  page: {
     minHeight: '100vh',
+    background: 'var(--background)',
     display: 'flex',
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: '#f0f4f8',
-    padding: '20px',
+    padding: '24px',
   },
-  card: {
-    backgroundColor: '#fff',
-    padding: '40px',
-    borderRadius: '12px',
-    boxShadow: '0 4px 20px rgba(0,0,0,0.1)',
+  container: {
     width: '100%',
     maxWidth: '420px',
-    textAlign: 'center',
+    display: 'flex',
+    flexDirection: 'column',
+    alignItems: 'center',
   },
-  logo: {
-    fontSize: '48px',
+  tagline: {
+    fontSize: '13px',
+    color: 'var(--text-secondary)',
+    marginTop: '8px',
+    marginBottom: '28px',
+  },
+  card: {
+    width: '100%',
+    background: 'var(--surface)',
+    borderRadius: 'var(--radius-lg)',
+    border: '1px solid var(--border)',
+    padding: '28px',
+    boxShadow: 'var(--shadow-sm)',
+    marginBottom: '20px',
+  },
+  cardTitle: {
+    fontSize: '18px',
+    fontWeight: '700',
+    color: 'var(--text-primary)',
     marginBottom: '4px',
   },
-  title: {
-    fontSize: '26px',
-    fontWeight: '700',
-    color: '#2d6a4f',
-    marginBottom: '8px',
-  },
-  subtitle: {
-    fontSize: '14px',
-    color: '#888',
-    marginBottom: '28px',
-    lineHeight: '1.5',
-  },
-  error: {
-    backgroundColor: '#ffe5e5',
-    color: '#c0392b',
-    padding: '10px',
-    borderRadius: '8px',
-    marginBottom: '16px',
-    fontSize: '14px',
-  },
-  success: {
-    backgroundColor: '#e5f5ec',
-    color: '#2d6a4f',
-    padding: '10px',
-    borderRadius: '8px',
-    marginBottom: '16px',
-    fontSize: '14px',
-  },
-  field: {
-    marginBottom: '16px',
-    textAlign: 'left',
-  },
-  label: {
-    display: 'block',
-    fontSize: '14px',
-    fontWeight: '600',
-    color: '#555',
-    marginBottom: '6px',
+  cardSubtitle: {
+    fontSize: '13px',
+    color: 'var(--text-secondary)',
+    marginBottom: '22px',
+    lineHeight: '1.6',
   },
   otpInput: {
     width: '100%',
-    padding: '14px',
-    borderRadius: '8px',
-    border: '2px solid #2d6a4f',
-    fontSize: '24px',
+    height: '56px',
+    padding: '0 16px',
+    borderRadius: 'var(--radius-sm)',
+    border: '1px solid var(--border)',
+    background: 'var(--surface)',
+    color: 'var(--text-primary)',
+    fontSize: '28px',
+    fontWeight: '600',
     textAlign: 'center',
-    letterSpacing: '8px',
+    letterSpacing: '10px',
     outline: 'none',
     boxSizing: 'border-box',
-  },
-  hint: {
-    fontSize: '12px',
-    color: '#aaa',
-    marginTop: '6px',
-  },
-  button: {
-    width: '100%',
-    padding: '12px',
-    backgroundColor: '#2d6a4f',
-    color: '#fff',
-    border: 'none',
-    borderRadius: '8px',
-    fontSize: '16px',
-    fontWeight: '600',
-    cursor: 'pointer',
-    marginTop: '8px',
-    marginBottom: '20px',
+    fontFamily: 'Inter, sans-serif',
+    transition: 'border-color 0.15s',
   },
   link: {
-    fontSize: '14px',
-    color: '#666',
+    fontSize: '13px',
+    color: 'var(--primary)',
+    fontWeight: '500',
+    textDecoration: 'none',
   },
-  linkText: {
-    color: '#2d6a4f',
-    fontWeight: '600',
+  bottomText: {
+    fontSize: '13px',
+    color: 'var(--text-secondary)',
+    textAlign: 'center',
+  },
+  linkBold: {
+    color: 'var(--primary)',
+    fontWeight: '700',
     textDecoration: 'none',
   },
 };

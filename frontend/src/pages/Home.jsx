@@ -2,143 +2,180 @@ import React from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import api from '../utils/api';
+import {
+  Navbar, PageWrapper, PageContent,
+  Card, StatCard, Button,
+} from '../components/UI';
+
+const features = [
+  {
+    key: 'resources',
+    path: '/resources',
+    title: 'Resource Hub',
+    description: 'Browse and share notes, past papers tagged by course code',
+    cta: 'Explore resources',
+    accent: false,
+    icon: (
+      <svg width="20" height="20" viewBox="0 0 24 24" fill="none"
+        stroke="var(--primary)" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+        <path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/>
+        <path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"/>
+      </svg>
+    ),
+  },
+  {
+    key: 'books',
+    path: '/books',
+    title: 'Book Exchange',
+    description: 'Buy, borrow or gift textbooks with secure campus PIN handoff',
+    cta: 'Browse books',
+    accent: false,
+    icon: (
+      <svg width="20" height="20" viewBox="0 0 24 24" fill="none"
+        stroke="var(--primary)" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+        <path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z"/>
+        <path d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z"/>
+      </svg>
+    ),
+  },
+  {
+    key: 'qna',
+    path: '/qna',
+    title: 'Anonymous Q&A',
+    description: 'Ask questions and get answers anonymously, tagged by course code',
+    cta: 'Ask a question',
+    accent: false,
+    icon: (
+      <svg width="20" height="20" viewBox="0 0 24 24" fill="none"
+        stroke="var(--primary)" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+        <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/>
+      </svg>
+    ),
+  },
+  {
+    key: 'resource-requests',
+    path: '/resource-requests',
+    title: 'My Requests',
+    description: 'Track your paid resource purchases and confirm payments as a seller',
+    cta: 'View requests',
+    accent: true,
+    icon: (
+      <svg width="20" height="20" viewBox="0 0 24 24" fill="none"
+        stroke="var(--accent)" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+        <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
+        <polyline points="14 2 14 8 20 8"/>
+        <line x1="16" y1="13" x2="8" y2="13"/>
+        <line x1="16" y1="17" x2="8" y2="17"/>
+      </svg>
+    ),
+  },
+];
 
 const Home = () => {
   const { user, logout } = useAuth();
   const navigate = useNavigate();
 
   const handleLogout = async () => {
-    try {
-      await api.post('/auth/logout');
-    } catch (err) {
-      // Even if API call fails, clear local state
-    } finally {
-      logout();
-      navigate('/login');
-    }
+    try { await api.post('/auth/logout'); } catch (_) {}
+    logout();
+    navigate('/login');
   };
 
   return (
-    <div style={styles.container}>
+    <PageWrapper>
+      <Navbar
+        userName={user?.full_name}
+        onLogout={handleLogout}
+        showPWA={true}
+      />
 
-      {/* Header */}
-      <div style={styles.header}>
-        <div>
-          <h1 style={styles.logo}>روشنی Roshni</h1>
-          <p style={styles.welcome}>Welcome, {user?.full_name}</p>
-        </div>
-        <button style={styles.logoutBtn} onClick={handleLogout}>
-          Logout
-        </button>
-      </div>
+      <PageContent>
 
-      {/* Feature Cards */}
-      <div style={styles.grid}>
-
-        <div style={styles.card} onClick={() => navigate('/resources')}>
-          <h2 style={styles.cardTitle}>Resource Hub</h2>
-          <p style={styles.cardText}>
-            Browse and share notes and past papers tagged by course code
+        {/* Welcome */}
+        <div style={{ marginBottom: '28px' }}>
+          <h1 style={styles.welcome}>
+            Welcome back, {user?.full_name?.split(' ')[0]}
+          </h1>
+          <p style={styles.welcomeSub}>
+            Here's what's happening in your campus community today.
           </p>
-          <span style={styles.cardLink}>Browse Resources</span>
         </div>
 
-        <div style={styles.card} onClick={() => navigate('/books')}>
-          <h2 style={styles.cardTitle}>Book Exchange</h2>
-          <p style={styles.cardText}>
-            Buy, borrow or gift books with secure PIN-based campus handoff
-          </p>
-          <span style={styles.cardLink}>Browse Books</span>
+        {/* Feature cards */}
+        <div style={styles.grid}>
+          {features.map(f => (
+            <Card
+              key={f.key}
+              onClick={() => navigate(f.path)}
+              hoverable
+              style={{ cursor: 'pointer' }}
+            >
+              <div style={{
+                width: '40px', height: '40px',
+                background: f.accent ? 'var(--accent-light)' : 'var(--primary-light)',
+                borderRadius: 'var(--radius-md)',
+                display: 'flex', alignItems: 'center',
+                justifyContent: 'center', marginBottom: '14px',
+              }}>
+                {f.icon}
+              </div>
+              <h3 style={styles.cardTitle}>{f.title}</h3>
+              <p style={styles.cardDesc}>{f.description}</p>
+              <span style={{
+                fontSize: '12px', fontWeight: '500',
+                color: f.accent ? 'var(--accent)' : 'var(--primary)',
+              }}>
+                {f.cta} →
+              </span>
+            </Card>
+          ))}
         </div>
 
-        <div style={styles.card} onClick={() => navigate('/qna')}>
-          <h2 style={styles.cardTitle}>Anonymous Q&A</h2>
-          <p style={styles.cardText}>
-            Ask and answer questions anonymously, tagged by course code
-          </p>
-          <span style={styles.cardLink}>Browse Questions</span>
+        {/* Stats */}
+        <div style={styles.statsGrid}>
+          <StatCard value="142" label="Resources shared" />
+          <StatCard value="38"  label="Active listings" />
+          <StatCard value="265" label="Questions answered" />
         </div>
 
-        <div style={styles.card} onClick={() => navigate('/resource-requests')}>
-          <h2 style={styles.cardTitle}>My Requests</h2>
-          <p style={styles.cardText}>
-            Track your paid resource purchases and confirm payments as a seller
-          </p>
-          <span style={styles.cardLink}>View Requests</span>
-        </div>
-
-      </div>
-    </div>
+      </PageContent>
+    </PageWrapper>
   );
 };
 
 const styles = {
-  container: {
-    minHeight: '100vh',
-    backgroundColor: '#f0f4f8',
-    padding: '24px',
-  },
-  header: {
-    display: 'flex',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    backgroundColor: '#fff',
-    padding: '16px 24px',
-    borderRadius: '12px',
-    boxShadow: '0 2px 10px rgba(0,0,0,0.08)',
-    marginBottom: '32px',
-  },
-  logo: {
-    fontSize: '22px',
+  welcome: {
+    fontSize: '20px',
     fontWeight: '700',
-    color: '#2d6a4f',
+    color: 'var(--text-primary)',
     marginBottom: '4px',
   },
-  welcome: {
-    fontSize: '14px',
-    color: '#888',
-  },
-  logoutBtn: {
-    padding: '8px 20px',
-    backgroundColor: '#fff',
-    color: '#c0392b',
-    border: '1px solid #c0392b',
-    borderRadius: '8px',
-    fontSize: '14px',
-    fontWeight: '600',
-    cursor: 'pointer',
+  welcomeSub: {
+    fontSize: '13px',
+    color: 'var(--text-secondary)',
   },
   grid: {
     display: 'grid',
-    gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))',
-    gap: '24px',
-  },
-  card: {
-    backgroundColor: '#fff',
-    padding: '32px 24px',
-    borderRadius: '12px',
-    boxShadow: '0 2px 10px rgba(0,0,0,0.08)',
-    cursor: 'pointer',
-    textAlign: 'center',
-  },
-  cardTitle: {
-    fontSize: '20px',
-    fontWeight: '700',
-    color: '#2d6a4f',
-    marginBottom: '12px',
-  },
-  cardText: {
-    fontSize: '14px',
-    color: '#888',
-    lineHeight: '1.6',
+    gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))',
+    gap: '14px',
     marginBottom: '20px',
   },
-  cardLink: {
+  cardTitle: {
     fontSize: '14px',
     fontWeight: '600',
-    color: '#2d6a4f',
-    borderBottom: '2px solid #2d6a4f',
-    paddingBottom: '2px',
+    color: 'var(--text-primary)',
+    marginBottom: '6px',
+  },
+  cardDesc: {
+    fontSize: '12px',
+    color: 'var(--text-secondary)',
+    marginBottom: '14px',
+    lineHeight: '1.55',
+  },
+  statsGrid: {
+    display: 'grid',
+    gridTemplateColumns: 'repeat(auto-fit, minmax(160px, 1fr))',
+    gap: '14px',
   },
 };
 

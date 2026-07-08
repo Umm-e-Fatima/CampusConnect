@@ -1,69 +1,59 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import api from '../utils/api';
-import UploadResourceForm from '../components/UploadResourceForm';
 import { useAuth } from '../context/AuthContext';
+import api from '../utils/api';
+import {
+  Navbar, PageWrapper, PageContent, PageHeader,
+  Button, Card, Badge, Field, Input, Select,
+  Textarea, Alert, Modal, EmptyState, Tabs, Switch,
+} from '../components/UI';
+import UploadResourceForm from '../components/UploadResourceForm';
 
 const Resources = () => {
+  const [resources, setResources]         = useState([]);
+  const [loading, setLoading]             = useState(true);
+  const [error, setError]                 = useState('');
+  const [filterCode, setFilterCode]       = useState('');
+  const [filterType, setFilterType]       = useState('');
+  const [suggestions, setSuggestions]     = useState([]);
+  const [showUpload, setShowUpload]       = useState(false);
   const [deleteConfirmId, setDeleteConfirmId] = useState(null);
-  const [resources, setResources] = useState([]);
-  const [courses, setCourses] = useState([]);
-  const [selectedCourse, setSelectedCourse] = useState('');
-  const [selectedType, setSelectedType] = useState('');
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState('');
-  const navigate = useNavigate();
-  const { user } = useAuth();
-  const [showUpload, setShowUpload] = useState(false);
-  const [requestForm, setRequestForm] = useState(null);
-  const [requestMsg, setRequestMsg] = useState('');
-  const [borrowDays, setBorrowDays] = useState('');
-  
-  // Fetch courses
-  useEffect(() => {
-    const fetchCourses = async () => {
-      try {
-        const res = await api.get('/courses');
-        setCourses(res.data);
-      } catch (err) {
-        console.error('Failed to fetch courses', err);
-      }
-    };
+  const [requestForm, setRequestForm]     = useState(null);
+  const [borrowDays, setBorrowDays]       = useState('');
+  const [requestMsg, setRequestMsg]       = useState('');
 
-    fetchCourses();
+  const { user, logout } = useAuth();
+  const navigate = useNavigate();
+
+  const handleLogout = async () => {
+    try { await api.post('/auth/logout'); } catch (_) {}
+    logout();
+    navigate('/login');
+  };
+
+  useEffect(() => {
+    api.get('/resources/distinct-courses')
+      .then(res => setSuggestions(res.data))
+      .catch(() => {});
   }, []);
 
-  // Fetch resources
   const fetchResources = async () => {
     setLoading(true);
-    setError('');
-
     try {
       const params = {};
-
-      if (selectedCourse) params.course_id = selectedCourse;
-      if (selectedType) params.type = selectedType;
-
+      if (filterCode.trim()) params.course_code = filterCode.trim().toUpperCase();
+      if (filterType) params.type = filterType;
       const res = await api.get('/resources', { params });
       setResources(res.data);
     } catch (err) {
-      console.error(err);
       setError('Failed to fetch resources');
     } finally {
       setLoading(false);
     }
   };
 
-  useEffect(() => {
-    fetchResources();
-  }, [selectedCourse, selectedType]);
+  useEffect(() => { fetchResources(); }, [filterCode, filterType]);
 
-  const handleRequest = (resource) => {
-  setRequestForm(resource);
-  setRequestMsg('');
-  setBorrowDays('');
-};
-  
   const handleDelete = async () => {
     try {
       await api.delete(`/resources/${deleteConfirmId}`);
@@ -75,555 +65,360 @@ const Resources = () => {
     }
   };
 
-const submitRequest = async () => {
-  try {
-    const body = { delivery_mode: 'online' };
-    if (requestForm.listing_type === 'borrow') {
-      if (!borrowDays || borrowDays < 1 || borrowDays > 15) {
-        setRequestMsg('Please enter borrow duration between 1 and 15 days');
-        return;
+  const handleRequest = (resource) => {
+    setRequestForm(resource);
+    setRequestMsg('');
+    setBorrowDays('');
+  };
+
+  const submitRequest = async () => {
+    try {
+      const body = { delivery_mode: 'online' };
+      if (requestForm.listing_type === 'borrow') {
+        if (!borrowDays || borrowDays < 1 || borrowDays > 15) {
+          setRequestMsg('Enter borrow duration between 1 and 15 days');
+          return;
+        }
+        body.borrow_days = parseInt(borrowDays);
       }
-      body.borrow_days = parseInt(borrowDays);
+      const res = await api.post(`/resource-requests/${requestForm.id}`, body);
+      setRequestMsg(
+        `Request created. PIN: ${res.data.pin} | Request ID: ${res.data.request_id} | ${res.data.total_price}`
+      );
+    } catch (err) {
+      setRequestMsg(err.response?.data?.error || 'Request failed');
     }
-    const res = await api.post(`/resource-requests/${requestForm.id}`, body);
-    setRequestMsg(res.data.message);
-    setRequestMsg(`${res.data.message} | PIN: ${res.data.pin} | Request ID: ${res.data.request_id}`);
-  } catch (err) {
-    setRequestMsg(err.response?.data?.error || 'Request failed');
-  }
-};
+  };
+
+  const listingBadge = (r) => {
+    if (r.listing_type === 'gift')   return <Badge tone="green">Gift</Badge>;
+    if (r.listing_type === 'borrow') return <Badge tone="blue">Borrow · Rs. {r.price}/day</Badge>;
+    return <Badge tone="gold">Buy · Rs. {r.price}</Badge>;
+  };
+
+  const typeBadge = (type) => {
+    if (type === 'past_paper') return <Badge tone="navy">Past Paper</Badge>;
+    if (type === 'notes')      return <Badge tone="navy">Notes</Badge>;
+    return <Badge tone="gray">Other</Badge>;
+  };
 
   return (
-    <div style={styles.container}>
-      {/* Header */}
-      <div style={styles.header}>
-        <button
-          style={styles.backBtn}
-          onClick={() => navigate('/home')}
-        >
-          Back
-        </button>
+    <PageWrapper>
+      <Navbar userName={user?.full_name} onLogout={handleLogout} />
 
-        <h1 style={styles.title}>Resource Hub</h1>
+      <PageContent>
+        <PageHeader
+          title="Resource Hub"
+          onBack={() => navigate('/home')}
+          action={
+            <Button
+              variant="accent"
+              size="md"
+              onClick={() => setShowUpload(true)}
+            >
+              + Upload Resource
+            </Button>
+          }
+        />
 
-        <button
-          style={styles.uploadBtn}
-          onClick={() => setShowUpload(true)}
-        >
-          Upload Resource
-        </button>
-      </div>
+        {/* Filters */}
+        <div style={styles.filterRow}>
+          <div style={{ flex: 1, position: 'relative' }}>
+            <Input
+              placeholder="Filter by course code e.g. CS-301"
+              value={filterCode}
+              onChange={e => setFilterCode(e.target.value)}
+              list="res-course-suggestions"
+              style={{ paddingLeft: '38px' }}
+            />
+            <svg style={styles.searchIcon} width="16" height="16" viewBox="0 0 24 24"
+              fill="none" stroke="var(--text-muted)" strokeWidth="2"
+              strokeLinecap="round" strokeLinejoin="round">
+              <circle cx="11" cy="11" r="8"/>
+              <line x1="21" y1="21" x2="16.65" y2="16.65"/>
+            </svg>
+            <datalist id="res-course-suggestions">
+              {suggestions.map(c => <option key={c} value={c} />)}
+            </datalist>
+          </div>
 
-      {/* Filters */}
-      <div style={styles.filters}>
-        <select
-          style={styles.select}
-          value={selectedCourse}
-          onChange={(e) => setSelectedCourse(e.target.value)}
-        >
-          <option value="">All Courses</option>
+          <Select
+            value={filterType}
+            onChange={e => setFilterType(e.target.value)}
+            style={{ width: '180px' }}
+          >
+            <option value="">All Types</option>
+            <option value="notes">Notes</option>
+            <option value="past_paper">Past Papers</option>
+            <option value="other">Other</option>
+          </Select>
 
-          {courses.map((c) => (
-            <option key={c.id} value={c.id}>
-              {c.course_code} — {c.course_name}
-            </option>
-          ))}
-        </select>
-
-        <select
-          style={styles.select}
-          value={selectedType}
-          onChange={(e) => setSelectedType(e.target.value)}
-        >
-          <option value="">All Types</option>
-          <option value="notes">Notes</option>
-          <option value="past_paper">Past Papers</option>
-          <option value="other">Other</option>
-        </select>
-      </div>
-
-      {/* Error */}
-      {error && (
-        <div style={styles.error}>
-          {error}
+          {filterCode && (
+            <Button variant="ghost" size="md" onClick={() => setFilterCode('')}>
+              Clear
+            </Button>
+          )}
         </div>
-      )}
 
-      {/* Loading */}
-      {loading && (
-        <p style={styles.message}>
-          Loading resources...
-        </p>
-      )}
+        {error && <Alert type="error" style={{ marginBottom: '16px' }}>{error}</Alert>}
 
-      {/* Empty State */}
-      {!loading && resources.length === 0 && (
-        <div style={styles.empty}>
-          <h3 style={styles.emptyTitle}>
-            No resources found
-          </h3>
-
-          <p style={styles.emptyText}>
-            Be the first to upload notes for this course.
+        {loading && (
+          <p style={{ color: 'var(--text-muted)', textAlign: 'center', padding: '48px 0' }}>
+            Loading resources...
           </p>
-        </div>
-      )}
+        )}
 
-      {/* Resource List */}
-      <div style={styles.list}>
-        {resources.map((r) => (
-          <div key={r.id} style={styles.card}>
-            <div style={styles.cardLeft}>
-              <span style={styles.badge}>
-                {r.resource_type === 'past_paper'
-                  ? 'Past Paper'
-                  : r.resource_type === 'notes'
-                  ? 'Notes'
-                  : 'Other'}
-              </span>
+        {!loading && resources.length === 0 && (
+          <EmptyState
+            title="No resources found"
+            description="Be the first to upload notes or past papers for this course"
+            action={
+              <Button variant="primary" onClick={() => setShowUpload(true)}>
+                Upload Resource
+              </Button>
+            }
+          />
+        )}
 
-              {r.listing_type !== 'gift' && (
-                <span style={styles.priceBadge}>
-                  {r.listing_type === 'borrow'
-                    ? `Rs. ${r.price}/day`
-                    : `Rs. ${r.price}`}
-                </span>
-              )}
+        {/* Resource list */}
+        <div style={styles.list}>
+          {resources.map(r => (
+            <Card key={r.id} style={styles.resourceCard}>
+              <div style={styles.cardLeft}>
+                <div style={styles.badgeRow}>
+                  {typeBadge(r.resource_type)}
+                  {listingBadge(r)}
+                  {r.course_code && (
+                    <span style={styles.courseCode}>{r.course_code}</span>
+                  )}
+                </div>
+                <h3 style={styles.resourceTitle}>{r.title}</h3>
+                <p style={styles.resourceMeta}>
+                  Uploaded by {r.uploader_name}
+                  {r.semester ? ` · Semester ${r.semester}` : ''}
+                  {` · ${r.download_count} downloads`}
+                </p>
+              </div>
 
-              <h3 style={styles.cardTitle}>
-                {r.title}
-              </h3>
-
-              <p style={styles.cardMeta}>
-                {r.course_code} &bull; Uploaded by {r.uploader_name} &bull;{' '}
-                {r.download_count} downloads
-              </p>
-            </div>
-
-            <div style={styles.cardActions}>
+              <div style={styles.cardActions}>
                 {r.listing_type === 'gift' ? (
                   <a
                     href={r.file_url}
                     target="_blank"
                     rel="noopener noreferrer"
-                    style={styles.downloadBtn}
+                    style={styles.downloadLink}
                   >
                     Download
                   </a>
                 ) : (
-                  <button
-                    style={styles.requestBtn}
+                  <Button
+                    variant="outline"
+                    size="sm"
                     onClick={() => handleRequest(r)}
                   >
                     Request Access
-                  </button>
+                  </Button>
                 )}
 
                 {r.uploaded_by === user?.id && (
-                  <button
-                    style={styles.deleteBtn}
+                  <Button
+                    variant="danger"
+                    size="sm"
                     onClick={() => setDeleteConfirmId(r.id)}
                   >
                     Remove
-                  </button>
+                  </Button>
                 )}
               </div>
-          </div>
-        ))}
-      </div>
-
-      {/* Request Access Modal */}
-      {requestForm && (
-        <div style={styles.overlay}>
-          <div style={styles.modal}>
-            <div style={styles.modalHeader}>
-              <h2 style={styles.modalTitle}>Request Access</h2>
-              <button style={styles.closeBtn} onClick={() => setRequestForm(null)}>
-                Close
-              </button>
-            </div>
-
-            <p style={styles.resourceInfo}>
-              <strong>{requestForm.title}</strong> · {requestForm.course_code}
-            </p>
-            <p style={styles.resourceInfo}>
-              {requestForm.listing_type === 'borrow'
-                ? `Rs. ${requestForm.price}/day`
-                : `Rs. ${requestForm.price} one-time`}
-            </p>
-
-            {requestForm.listing_type === 'borrow' && (
-              <div style={styles.field}>
-                <label style={styles.label}>How many days? (max 15)</label>
-                <input
-                  style={styles.input}
-                  type="number"
-                  min="1"
-                  max="15"
-                  placeholder="e.g. 3"
-                  value={borrowDays}
-                  onChange={(e) => setBorrowDays(e.target.value)}
-                />
-                {borrowDays && requestForm.price && (
-                  <p style={styles.priceCalc}>
-                    Total: Rs. {(requestForm.price * borrowDays).toFixed(2)}
-                  </p>
-                )}
-              </div>
-            )}
-
-            <p style={styles.paymentNote}>
-              Pay the seller directly via JazzCash or bank transfer,
-              then show them your PIN to confirm.
-            </p>
-
-            {requestMsg && (
-              <div style={requestMsg.includes('failed') || requestMsg.includes('error')
-                ? styles.error : styles.success}>
-                {requestMsg}
-              </div>
-            )}
-
-            {!requestMsg && (
-              <button style={styles.submitBtn} onClick={submitRequest}>
-                Confirm Request
-              </button>
-            )}
-
-            {requestMsg && !requestMsg.includes('failed') && (
-              <button
-                style={styles.submitBtn}
-                onClick={() => {
-                  setRequestForm(null);
-                  navigate('/resource-requests');
-                }}
-              >
-                View My Requests
-              </button>
-            )}
-          </div>
+            </Card>
+          ))}
         </div>
-      )}
+
+      </PageContent>
 
       {/* Upload Modal */}
       {showUpload && (
         <UploadResourceForm
           onClose={() => setShowUpload(false)}
-          onUploaded={() => {
-            setShowUpload(false);
-            fetchResources();
-          }}
+          onUploaded={() => { setShowUpload(false); fetchResources(); }}
         />
       )}
-      {/* Delete Confirmation Modal */}
+
+      {/* Delete Confirm Modal */}
       {deleteConfirmId && (
-        <div style={styles.overlay}>
-          <div style={styles.modal}>
-            <div style={styles.modalHeader}>
-              <h2 style={styles.modalTitle}>Remove Resource</h2>
-            </div>
-            <p style={{ fontSize: '15px', color: '#555', marginBottom: '24px', lineHeight: '1.6' }}>
-              Are you sure you want to remove this resource? It will no longer be visible to other students.
-            </p>
-            <div style={{ display: 'flex', gap: '12px' }}>
-              <button
-                style={styles.submitBtn}
-                onClick={handleDelete}
-              >
-                Yes, Remove
-              </button>
-              <button
-                style={{ ...styles.submitBtn, backgroundColor: '#fff', color: '#555', border: '1px solid #ddd' }}
-                onClick={() => setDeleteConfirmId(null)}
-              >
-                Cancel
-              </button>
-            </div>
+        <Modal title="Remove Resource" onClose={() => setDeleteConfirmId(null)}>
+          <p style={{ fontSize: '13px', color: 'var(--text-secondary)', marginBottom: '24px', lineHeight: '1.6' }}>
+            Are you sure you want to remove this resource? It will no longer be visible to other students.
+          </p>
+          <div style={{ display: 'flex', gap: '10px' }}>
+            <Button variant="danger" fullWidth onClick={handleDelete}>
+              Yes, Remove
+            </Button>
+            <Button variant="ghost" fullWidth onClick={() => setDeleteConfirmId(null)}>
+              Cancel
+            </Button>
           </div>
-        </div>
+        </Modal>
       )}
-    </div>
+
+      {/* Request Access Modal */}
+      {requestForm && (
+        <Modal
+          title="Request Access"
+          onClose={() => setRequestForm(null)}
+        >
+          <div style={styles.requestInfo}>
+            <p style={{ fontSize: '14px', fontWeight: '600', color: 'var(--text-primary)' }}>
+              {requestForm.title}
+            </p>
+            <p style={{ fontSize: '13px', color: 'var(--text-secondary)', marginTop: '2px' }}>
+              {requestForm.course_code} ·{' '}
+              {requestForm.listing_type === 'borrow'
+                ? `Rs. ${requestForm.price}/day`
+                : `Rs. ${requestForm.price} one-time`}
+            </p>
+          </div>
+
+          {requestForm.listing_type === 'borrow' && (
+            <Field
+              label="How many days? (max 15)"
+              hint={borrowDays && requestForm.price
+                ? `Total: Rs. ${(requestForm.price * borrowDays).toFixed(2)}`
+                : ''}
+            >
+              <Input
+                type="number"
+                min="1"
+                max="15"
+                placeholder="e.g. 3"
+                value={borrowDays}
+                onChange={e => setBorrowDays(e.target.value)}
+              />
+            </Field>
+          )}
+
+          <div style={styles.paymentNote}>
+            <p style={{ fontSize: '13px', color: 'var(--text-secondary)', lineHeight: '1.6' }}>
+              Pay the seller directly via JazzCash or bank transfer, then show them your PIN to confirm.
+            </p>
+          </div>
+
+          {requestMsg && (
+            <Alert
+              type={requestMsg.includes('failed') || requestMsg.includes('error') ? 'error' : 'success'}
+              style={{ marginBottom: '16px' }}
+            >
+              {requestMsg}
+            </Alert>
+          )}
+
+          {!requestMsg ? (
+            <Button variant="primary" fullWidth onClick={submitRequest}>
+              Confirm Request
+            </Button>
+          ) : !requestMsg.includes('failed') && (
+            <Button
+              variant="primary"
+              fullWidth
+              onClick={() => { setRequestForm(null); navigate('/resource-requests'); }}
+            >
+              View My Requests
+            </Button>
+          )}
+        </Modal>
+      )}
+
+    </PageWrapper>
   );
 };
 
 const styles = {
-  container: {
-    minHeight: '100vh',
-    backgroundColor: '#f0f4f8',
-    padding: '24px',
-  },
-  header: {
+  filterRow: {
     display: 'flex',
+    gap: '10px',
+    marginBottom: '20px',
     alignItems: 'center',
-    gap: '16px',
-    marginBottom: '24px',
-  },
-  backBtn: {
-    padding: '8px 16px',
-    backgroundColor: '#fff',
-    border: '1px solid #ddd',
-    borderRadius: '8px',
-    fontSize: '14px',
-    cursor: 'pointer',
-    color: '#555',
-  },
-  title: {
-    fontSize: '24px',
-    fontWeight: '700',
-    color: '#2d6a4f',
-  },
-  uploadBtn: {
-    marginLeft: 'auto',
-    padding: '10px 20px',
-    backgroundColor: '#2d6a4f',
-    color: '#fff',
-    border: 'none',
-    borderRadius: '8px',
-    fontSize: '14px',
-    fontWeight: '600',
-    cursor: 'pointer',
-  },
-  filters: {
-    display: 'flex',
-    gap: '16px',
-    marginBottom: '24px',
     flexWrap: 'wrap',
   },
-  select: {
-    padding: '10px 14px',
-    borderRadius: '8px',
-    border: '1px solid #ddd',
-    fontSize: '14px',
-    backgroundColor: '#fff',
-    cursor: 'pointer',
-    minWidth: '200px',
-  },
-  error: {
-    backgroundColor: '#ffe5e5',
-    color: '#c0392b',
-    padding: '10px',
-    borderRadius: '8px',
-    marginBottom: '16px',
-    fontSize: '14px',
-  },
-  message: {
-    color: '#888',
-    textAlign: 'center',
-    padding: '40px',
-  },
-  empty: {
-    textAlign: 'center',
-    padding: '60px 20px',
-    backgroundColor: '#fff',
-    borderRadius: '12px',
-    boxShadow: '0 2px 10px rgba(0,0,0,0.08)',
-  },
-  emptyTitle: {
-    fontSize: '18px',
-    fontWeight: '600',
-    color: '#555',
-    marginBottom: '8px',
-  },
-  emptyText: {
-    fontSize: '14px',
-    color: '#aaa',
+  searchIcon: {
+    position: 'absolute',
+    left: '12px',
+    top: '50%',
+    transform: 'translateY(-50%)',
+    pointerEvents: 'none',
   },
   list: {
     display: 'flex',
     flexDirection: 'column',
-    gap: '16px',
+    gap: '10px',
   },
-  card: {
-    backgroundColor: '#fff',
-    padding: '20px 24px',
-    borderRadius: '12px',
-    boxShadow: '0 2px 10px rgba(0,0,0,0.08)',
+  resourceCard: {
     display: 'flex',
     justifyContent: 'space-between',
     alignItems: 'center',
+    gap: '16px',
   },
   cardLeft: {
     flex: 1,
+    minWidth: 0,
   },
-  badge: {
-    display: 'inline-block',
-    padding: '4px 10px',
-    backgroundColor: '#e8f5e9',
-    color: '#2d6a4f',
-    borderRadius: '20px',
-    fontSize: '12px',
-    fontWeight: '600',
-    marginRight: '8px',
+  badgeRow: {
+    display: 'flex',
+    gap: '6px',
+    flexWrap: 'wrap',
+    alignItems: 'center',
     marginBottom: '8px',
   },
-  priceBadge: {
-    display: 'inline-block',
-    padding: '4px 10px',
-    backgroundColor: '#fff8e1',
-    color: '#f57f17',
-    borderRadius: '20px',
+  courseCode: {
+    fontSize: '11px',
+    color: 'var(--text-muted)',
+    fontWeight: '500',
+  },
+  resourceTitle: {
+    fontSize: '14px',
+    fontWeight: '600',
+    color: 'var(--text-primary)',
+    marginBottom: '4px',
+    whiteSpace: 'nowrap',
+    overflow: 'hidden',
+    textOverflow: 'ellipsis',
+  },
+  resourceMeta: {
     fontSize: '12px',
-    fontWeight: '600',
-    marginBottom: '8px',
+    color: 'var(--text-muted)',
   },
-  cardTitle: {
-    fontSize: '16px',
-    fontWeight: '600',
-    color: '#333',
-    marginBottom: '6px',
+  cardActions: {
+    display: 'flex',
+    flexDirection: 'column',
+    gap: '6px',
+    alignItems: 'flex-end',
+    flexShrink: 0,
   },
-  cardMeta: {
-    fontSize: '13px',
-    color: '#aaa',
-  },
-  downloadBtn: {
-    padding: '8px 20px',
-    backgroundColor: '#2d6a4f',
+  downloadLink: {
+    display: 'inline-flex',
+    alignItems: 'center',
+    height: '32px',
+    padding: '0 12px',
+    background: 'var(--primary)',
     color: '#fff',
-    borderRadius: '8px',
-    fontSize: '14px',
-    fontWeight: '600',
+    borderRadius: 'var(--radius-sm)',
+    fontSize: '12px',
+    fontWeight: '500',
     textDecoration: 'none',
-    whiteSpace: 'nowrap',
   },
-  comingSoonBtn: {
-    padding: '8px 20px',
-    backgroundColor: '#f5f5f5',
-    color: '#aaa',
-    borderRadius: '8px',
-    fontSize: '14px',
-    fontWeight: '600',
-    whiteSpace: 'nowrap',
+  requestInfo: {
+    padding: '14px',
+    background: 'var(--surface-muted)',
+    borderRadius: 'var(--radius-sm)',
+    marginBottom: '16px',
   },
-  overlay: {
-  position: 'fixed',
-  top: 0, left: 0, right: 0, bottom: 0,
-  backgroundColor: 'rgba(0,0,0,0.5)',
-  display: 'flex',
-  alignItems: 'center',
-  justifyContent: 'center',
-  padding: '20px',
-  zIndex: 1000,
-},
-modal: {
-  backgroundColor: '#fff',
-  borderRadius: '12px',
-  padding: '28px',
-  width: '100%',
-  maxWidth: '420px',
-  maxHeight: '90vh',
-  overflowY: 'auto',
-},
-modalHeader: {
-  display: 'flex',
-  justifyContent: 'space-between',
-  alignItems: 'center',
-  marginBottom: '16px',
-},
-modalTitle: {
-  fontSize: '20px',
-  fontWeight: '700',
-  color: '#2d6a4f',
-},
-closeBtn: {
-  padding: '6px 14px',
-  backgroundColor: '#f5f5f5',
-  border: 'none',
-  borderRadius: '8px',
-  fontSize: '13px',
-  cursor: 'pointer',
-  color: '#555',
-},
-resourceInfo: {
-  fontSize: '15px',
-  color: '#333',
-  marginBottom: '8px',
-},
-field: {
-  marginBottom: '16px',
-  marginTop: '16px',
-},
-label: {
-  display: 'block',
-  fontSize: '14px',
-  fontWeight: '600',
-  color: '#555',
-  marginBottom: '6px',
-},
-input: {
-  width: '100%',
-  padding: '10px 14px',
-  borderRadius: '8px',
-  border: '1px solid #ddd',
-  fontSize: '14px',
-  outline: 'none',
-  boxSizing: 'border-box',
-},
-priceCalc: {
-  fontSize: '14px',
-  fontWeight: '600',
-  color: '#2d6a4f',
-  marginTop: '6px',
-},
-paymentNote: {
-  fontSize: '13px',
-  color: '#888',
-  lineHeight: '1.6',
-  marginTop: '16px',
-  marginBottom: '16px',
-  padding: '12px',
-  backgroundColor: '#f9f9f9',
-  borderRadius: '8px',
-},
-success: {
-  backgroundColor: '#e8f5e9',
-  color: '#2d6a4f',
-  padding: '10px',
-  borderRadius: '8px',
-  marginBottom: '16px',
-  fontSize: '13px',
-  lineHeight: '1.6',
-},
-requestBtn: {
-  padding: '8px 20px',
-  backgroundColor: '#1565c0',
-  color: '#fff',
-  border: 'none',
-  borderRadius: '8px',
-  fontSize: '14px',
-  fontWeight: '600',
-  cursor: 'pointer',
-  whiteSpace: 'nowrap',
-},
-submitBtn: {
-  width: '100%',
-  padding: '12px',
-  backgroundColor: '#2d6a4f',
-  color: '#fff',
-  border: 'none',
-  borderRadius: '8px',
-  fontSize: '15px',
-  fontWeight: '600',
-  cursor: 'pointer',
-  marginTop: '8px',
-},
-cardActions: {
-  display: 'flex',
-  flexDirection: 'column',
-  gap: '8px',
-  alignItems: 'flex-end',
-},
-deleteBtn: {
-  padding: '6px 16px',
-  backgroundColor: '#fff',
-  color: '#c0392b',
-  border: '1px solid #c0392b',
-  borderRadius: '8px',
-  fontSize: '13px',
-  fontWeight: '600',
-  cursor: 'pointer',
-  whiteSpace: 'nowrap',
-},
+  paymentNote: {
+    padding: '12px 14px',
+    background: 'var(--primary-light)',
+    borderRadius: 'var(--radius-sm)',
+    marginBottom: '16px',
+    marginTop: '8px',
+  },
 };
 
 export default Resources;
