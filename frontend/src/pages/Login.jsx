@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import api from '../utils/api';
-import { Button, Field, Input, Alert } from '../components/UI';
+import { Button, Field, Input, Alert, Logo } from '../components/UI';
 
 const Login = () => {
   const [form, setForm] = useState({ email: '', password: '' });
@@ -34,27 +34,14 @@ const Login = () => {
     <div style={styles.page}>
       <div style={styles.container}>
 
-        {/* Logo */}
-        <div style={styles.logoRow}>
-          <div style={styles.logoIcon}>
-            <svg width="22" height="22" viewBox="0 0 24 24" fill="none"
-              stroke="#ffffff" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-              <path d="M22 10v6M2 10l10-5 10 5-10 5z"/>
-              <path d="M6 12v5c3 3 9 3 12 0v-5"/>
-            </svg>
-          </div>
-          <span style={styles.logoText}>
-            <span style={styles.logoNavy}>Campus</span>
-            <span style={styles.logoGold}>Connect</span>
-          </span>
-        </div>
-
+        <Logo size="md" />
         <p style={styles.tagline}>Learn Together, Grow Together</p>
 
-        {/* Card */}
         <div style={styles.card}>
           <h2 style={styles.cardTitle}>Welcome back</h2>
-          <p style={styles.cardSubtitle}>Sign in to your CampusConnect account</p>
+          <p style={styles.cardSubtitle}>
+            Sign in to your CampusConnect account
+          </p>
 
           {error && (
             <Alert type="error" style={{ marginBottom: '16px' }}>
@@ -92,8 +79,9 @@ const Login = () => {
             <Button
               type="submit"
               fullWidth
+              size="lg"
               disabled={loading}
-              style={{ marginTop: '8px' }}
+              style={{ marginTop: '4px' }}
             >
               {loading ? 'Signing in...' : 'Login'}
             </Button>
@@ -106,7 +94,7 @@ const Login = () => {
           </div>
         </div>
 
-        <p style={styles.registerText}>
+        <p style={styles.bottomText}>
           Don't have an account?{' '}
           <Link to="/register" style={styles.linkBold}>
             Register here
@@ -121,7 +109,7 @@ const Login = () => {
 const styles = {
   page: {
     minHeight: '100vh',
-    backgroundColor: 'var(--background)',
+    background: 'var(--background)',
     display: 'flex',
     alignItems: 'center',
     justifyContent: 'center',
@@ -129,72 +117,45 @@ const styles = {
   },
   container: {
     width: '100%',
-    maxWidth: '480px',
+    maxWidth: '420px',
     display: 'flex',
     flexDirection: 'column',
     alignItems: 'center',
   },
-  logoRow: {
-    display: 'flex',
-    alignItems: 'center',
-    gap: '10px',
-    marginBottom: '8px',
-  },
-  logoIcon: {
-    width: '44px',
-    height: '44px',
-    backgroundColor: 'var(--primary)',
-    borderRadius: '10px',
-    display: 'flex',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  logoText: {
-    fontSize: '26px',
-    fontFamily: 'Plus Jakarta Sans, sans-serif',
-    fontWeight: '800',
-    letterSpacing: '-0.5px',
-  },
-  logoNavy: {
-    color: 'var(--primary)',
-  },
-  logoGold: {
-    color: 'var(--accent)',
-  },
   tagline: {
-    fontSize: '14px',
+    fontSize: '13px',
     color: 'var(--text-secondary)',
+    marginTop: '8px',
     marginBottom: '28px',
   },
   card: {
     width: '100%',
-    backgroundColor: 'var(--surface)',
+    background: 'var(--surface)',
     borderRadius: 'var(--radius-lg)',
     border: '1px solid var(--border)',
-    padding: '32px',
+    padding: '28px',
     boxShadow: 'var(--shadow-sm)',
     marginBottom: '20px',
   },
   cardTitle: {
-    fontSize: '20px',
+    fontSize: '18px',
     fontWeight: '700',
     color: 'var(--text-primary)',
-    fontFamily: 'Plus Jakarta Sans, sans-serif',
     marginBottom: '4px',
   },
   cardSubtitle: {
-    fontSize: '14px',
+    fontSize: '13px',
     color: 'var(--text-secondary)',
-    marginBottom: '24px',
+    marginBottom: '22px',
   },
   link: {
-    fontSize: '14px',
+    fontSize: '13px',
     color: 'var(--primary)',
-    fontWeight: '600',
+    fontWeight: '500',
     textDecoration: 'none',
   },
-  registerText: {
-    fontSize: '14px',
+  bottomText: {
+    fontSize: '13px',
     color: 'var(--text-secondary)',
     textAlign: 'center',
   },

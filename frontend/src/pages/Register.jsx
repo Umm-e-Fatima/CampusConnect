@@ -1,62 +1,47 @@
 import React, { useState } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import api from '../utils/api';
-import { Button, Field, Input, Select, Alert } from '../components/UI';
+import { Button, Field, Input, Select, Alert, Logo } from '../components/UI';
 
-const validatePassword = (password) => {
-  const rules = [
-    { label: 'At least 8 characters',         met: password.length >= 8 },
-    { label: 'At least one uppercase letter',  met: /[A-Z]/.test(password) },
-    { label: 'At least one number',            met: /[0-9]/.test(password) },
-    { label: 'At least one special character', met: /[!@#$%^&*(),.?":{}|<>]/.test(password) },
-  ];
-  return rules;
-};
+const passwordRules = (password) => [
+  { label: 'At least 8 characters',         met: password.length >= 8 },
+  { label: 'At least one uppercase letter',  met: /[A-Z]/.test(password) },
+  { label: 'At least one number',            met: /[0-9]/.test(password) },
+  { label: 'At least one special character', met: /[!@#$%^&*(),.?":{}|<>]/.test(password) },
+];
 
 const PasswordStrength = ({ password }) => {
   if (!password) return null;
-  const rules = validatePassword(password);
-  const metCount = rules.filter(r => r.met).length;
-  const strengthLabel = ['', 'Weak', 'Fair', 'Good', 'Strong'][metCount];
-  const strengthColor = ['', '#e53e3e', '#f0a500', '#2b6cb0', '#2d6a4f'][metCount];
-  const barWidth = `${(metCount / 4) * 100}%`;
+  const rules = passwordRules(password);
+  const met = rules.filter(r => r.met).length;
+  const colors = ['', '#DC2626', '#f0a500', '#2563eb', '#16A34A'];
+  const labels = ['', 'Weak', 'Fair', 'Good', 'Strong'];
 
   return (
     <div style={{ marginTop: '8px' }}>
-      {/* Strength bar */}
-      <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '8px' }}>
+      <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '8px' }}>
         <div style={{
-          flex: 1,
-          height: '4px',
-          backgroundColor: '#eef1f6',
-          borderRadius: '2px',
-          overflow: 'hidden',
+          flex: 1, height: '3px',
+          background: 'var(--border)', borderRadius: '2px', overflow: 'hidden',
         }}>
           <div style={{
-            height: '100%',
-            width: barWidth,
-            backgroundColor: strengthColor,
-            borderRadius: '2px',
-            transition: 'width 0.3s, background-color 0.3s',
+            height: '100%', width: `${(met / 4) * 100}%`,
+            background: colors[met], borderRadius: '2px',
+            transition: 'width 0.3s, background 0.3s',
           }} />
         </div>
-        <span style={{ fontSize: '12px', fontWeight: '600', color: strengthColor, minWidth: '40px' }}>
-          {strengthLabel}
+        <span style={{ fontSize: '11px', fontWeight: '600', color: colors[met], minWidth: '36px' }}>
+          {labels[met]}
         </span>
       </div>
-      {/* Rules checklist */}
-      <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
-        {rules.map(rule => (
-          <div key={rule.label} style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-            <span style={{
-              fontSize: '12px',
-              fontWeight: '700',
-              color: rule.met ? '#2d6a4f' : '#cbd5e0',
-            }}>
-              {rule.met ? '✓' : '○'}
+      <div style={{ display: 'flex', flexDirection: 'column', gap: '3px' }}>
+        {rules.map(r => (
+          <div key={r.label} style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+            <span style={{ fontSize: '11px', color: r.met ? '#16A34A' : 'var(--text-muted)', fontWeight: '600' }}>
+              {r.met ? '✓' : '○'}
             </span>
-            <span style={{ fontSize: '12px', color: rule.met ? '#2d6a4f' : 'var(--text-muted)' }}>
-              {rule.label}
+            <span style={{ fontSize: '11px', color: r.met ? '#16A34A' : 'var(--text-muted)' }}>
+              {r.label}
             </span>
           </div>
         ))}
@@ -67,12 +52,8 @@ const PasswordStrength = ({ password }) => {
 
 const Register = () => {
   const [form, setForm] = useState({
-    full_name: '',
-    email: '',
-    password: '',
-    gender: '',
-    department: '',
-    semester: '',
+    full_name: '', email: '', password: '',
+    gender: '', department: '', semester: '',
   });
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
@@ -85,13 +66,11 @@ const Register = () => {
   const handleSubmit = async (e) => {
     e.preventDefault();
     setError('');
-
-    const rules = validatePassword(form.password);
+    const rules = passwordRules(form.password);
     if (rules.some(r => !r.met)) {
       setError('Please meet all password requirements');
       return;
     }
-
     setLoading(true);
     try {
       await api.post('/auth/register', {
@@ -110,24 +89,9 @@ const Register = () => {
     <div style={styles.page}>
       <div style={styles.container}>
 
-        {/* Logo */}
-        <div style={styles.logoRow}>
-          <div style={styles.logoIcon}>
-            <svg width="22" height="22" viewBox="0 0 24 24" fill="none"
-              stroke="#ffffff" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-              <path d="M22 10v6M2 10l10-5 10 5-10 5z"/>
-              <path d="M6 12v5c3 3 9 3 12 0v-5"/>
-            </svg>
-          </div>
-          <span style={styles.logoText}>
-            <span style={styles.logoNavy}>Campus</span>
-            <span style={styles.logoGold}>Connect</span>
-          </span>
-        </div>
-
+        <Logo size="md" />
         <p style={styles.tagline}>Learn Together, Grow Together</p>
 
-        {/* Card */}
         <div style={styles.card}>
           <h2 style={styles.cardTitle}>Create account</h2>
           <p style={styles.cardSubtitle}>
@@ -195,8 +159,12 @@ const Register = () => {
               </Select>
             </Field>
 
-            <div style={styles.row}>
-              <Field label="Department" htmlFor="department" style={{ flex: 1, marginRight: '12px' }}>
+            <div style={{ display: 'flex', gap: '12px' }}>
+              <Field
+                label="Department"
+                htmlFor="department"
+                style={{ flex: 1 }}
+              >
                 <Input
                   id="department"
                   name="department"
@@ -207,14 +175,18 @@ const Register = () => {
                 />
               </Field>
 
-              <Field label="Semester" htmlFor="semester" style={{ width: '120px' }}>
+              <Field
+                label="Semester"
+                htmlFor="semester"
+                style={{ width: '110px' }}
+              >
                 <Select
                   id="semester"
                   name="semester"
                   value={form.semester}
                   onChange={handleChange}
                 >
-                  <option value="">Select</option>
+                  <option value="">—</option>
                   {[1,2,3,4,5,6,7,8].map(s => (
                     <option key={s} value={s}>{s}</option>
                   ))}
@@ -225,8 +197,9 @@ const Register = () => {
             <Button
               type="submit"
               fullWidth
+              size="lg"
               disabled={loading}
-              style={{ marginTop: '8px' }}
+              style={{ marginTop: '4px' }}
             >
               {loading ? 'Creating account...' : 'Create Account'}
             </Button>
@@ -234,7 +207,7 @@ const Register = () => {
           </form>
         </div>
 
-        <p style={styles.loginText}>
+        <p style={styles.bottomText}>
           Already have an account?{' '}
           <Link to="/login" style={styles.linkBold}>
             Login here
@@ -249,7 +222,7 @@ const Register = () => {
 const styles = {
   page: {
     minHeight: '100vh',
-    backgroundColor: 'var(--background)',
+    background: 'var(--background)',
     display: 'flex',
     alignItems: 'center',
     justifyContent: 'center',
@@ -257,70 +230,39 @@ const styles = {
   },
   container: {
     width: '100%',
-    maxWidth: '480px',
+    maxWidth: '440px',
     display: 'flex',
     flexDirection: 'column',
     alignItems: 'center',
   },
-  logoRow: {
-    display: 'flex',
-    alignItems: 'center',
-    gap: '10px',
-    marginBottom: '8px',
-  },
-  logoIcon: {
-    width: '44px',
-    height: '44px',
-    backgroundColor: 'var(--primary)',
-    borderRadius: '10px',
-    display: 'flex',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  logoText: {
-    fontSize: '26px',
-    fontFamily: 'Plus Jakarta Sans, sans-serif',
-    fontWeight: '800',
-    letterSpacing: '-0.5px',
-  },
-  logoNavy: {
-    color: 'var(--primary)',
-  },
-  logoGold: {
-    color: 'var(--accent)',
-  },
   tagline: {
-    fontSize: '14px',
+    fontSize: '13px',
     color: 'var(--text-secondary)',
+    marginTop: '8px',
     marginBottom: '28px',
   },
   card: {
     width: '100%',
-    backgroundColor: 'var(--surface)',
+    background: 'var(--surface)',
     borderRadius: 'var(--radius-lg)',
     border: '1px solid var(--border)',
-    padding: '32px',
+    padding: '28px',
     boxShadow: 'var(--shadow-sm)',
     marginBottom: '20px',
   },
   cardTitle: {
-    fontSize: '20px',
+    fontSize: '18px',
     fontWeight: '700',
     color: 'var(--text-primary)',
-    fontFamily: 'Plus Jakarta Sans, sans-serif',
     marginBottom: '4px',
   },
   cardSubtitle: {
-    fontSize: '14px',
+    fontSize: '13px',
     color: 'var(--text-secondary)',
-    marginBottom: '24px',
+    marginBottom: '22px',
   },
-  row: {
-    display: 'flex',
-    alignItems: 'flex-start',
-  },
-  loginText: {
-    fontSize: '14px',
+  bottomText: {
+    fontSize: '13px',
     color: 'var(--text-secondary)',
     textAlign: 'center',
   },
