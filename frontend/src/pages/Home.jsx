@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import api from '../utils/api';
@@ -74,7 +74,17 @@ const features = [
 const Home = () => {
   const { user, logout } = useAuth();
   const navigate = useNavigate();
+  const [stats, setStats] = useState({
+  resources_shared:   0,
+  active_listings:    0,
+  questions_answered: 0,
+});
 
+useEffect(() => {
+  api.get('/stats')
+    .then(res => setStats(res.data))
+    .catch(() => {});
+}, []);
   const handleLogout = async () => {
     try { await api.post('/auth/logout'); } catch (_) {}
     logout();
@@ -133,9 +143,9 @@ const Home = () => {
 
         {/* Stats */}
         <div style={styles.statsGrid}>
-          <StatCard value="142" label="Resources shared" />
-          <StatCard value="38"  label="Active listings" />
-          <StatCard value="265" label="Questions answered" />
+          <StatCard value={stats.resources_shared}   label="Resources shared" />
+          <StatCard value={stats.active_listings}    label="Active listings" />
+          <StatCard value={stats.questions_answered} label="Questions answered" />
         </div>
 
       </PageContent>

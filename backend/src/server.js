@@ -19,7 +19,25 @@ app.use('/api/resources',         require('./routes/resource.routes'));
 app.use('/api/books',             require('./routes/book.routes'));
 app.use('/api/qna',               require('./routes/qna.routes'));
 app.use('/api/resource-requests', require('./routes/resource_request.routes'));
-
+// Stats endpoint
+app.get('/api/stats', require('./middleware/auth.middleware').authenticate, async (req, res) => {
+  try {
+    const pool = require('./config/db');
+    const [resources, listings, questions] = await Promise.all([
+      pool.query('SELECT COUNT(*) FROM resources WHERE is_active = TRUE'),
+      pool.query('SELECT COUNT(*) FROM book_listings WHERE is_active = TRUE AND status = $1', ['available']),
+      pool.query('SELECT COUNT(*) FROM answers WHERE is_active = TRUE'),
+    ]);
+    res.json({
+      resources_shared:    parseInt(resources.rows[0].count),
+      active_listings:     parseInt(listings.rows[0].count),
+      questions_answered:  parseInt(questions.rows[0].count),
+    });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'Failed to fetch stats' });
+  }
+});
 //  Health Check 
 app.get('/health', (req, res) => res.json({ status: 'ok', service: 'roshni-api' }));
 
