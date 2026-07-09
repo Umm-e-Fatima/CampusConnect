@@ -97,7 +97,7 @@ const Home = () => {
             Welcome back, {user?.full_name?.split(' ')[0]}
           </h1>
           <p style={styles.welcomeSub}>
-            Here's what's happening in your campus community today.
+            Here is what is happening in your campus community today.
           </p>
         </div>
 

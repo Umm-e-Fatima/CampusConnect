@@ -1,45 +1,38 @@
 import React, { useState } from 'react';
 import { useNavigate, useLocation, Link } from 'react-router-dom';
 import api from '../utils/api';
+import { Button, Field, Input, Alert, Logo } from '../components/UI';
 
-const validatePassword = (password) => {
-  const errors = [];
-  if (password.length < 8)         errors.push('At least 8 characters');
-  if (!/[A-Z]/.test(password))     errors.push('At least one uppercase letter');
-  if (!/[0-9]/.test(password))     errors.push('At least one number');
-  if (!/[!@#$%^&*(),.?":{}|<>]/.test(password))
-    errors.push('At least one special character');
-  return errors;
-};
+const passwordRules = (password) => [
+  { label: 'At least 8 characters',         met: password.length >= 8 },
+  { label: 'At least one uppercase letter',  met: /[A-Z]/.test(password) },
+  { label: 'At least one number',            met: /[0-9]/.test(password) },
+  { label: 'At least one special character', met: /[!@#$%^&*(),.?":{}|<>]/.test(password) },
+];
 
 const ResetPassword = () => {
   const location = useLocation();
   const navigate = useNavigate();
   const [form, setForm] = useState({
-    email: location.state?.email || '',
-    otp: '',
-    new_password: '',
+    email:            location.state?.email || '',
+    otp:              '',
+    new_password:     '',
     confirm_password: '',
   });
-  const [error, setError] = useState('');
+  const [error, setError]   = useState('');
   const [loading, setLoading] = useState(false);
-  const [passwordErrors, setPasswordErrors] = useState([]);
 
   const handleChange = (e) => {
-    const updated = { ...form, [e.target.name]: e.target.value };
-    setForm(updated);
-    if (e.target.name === 'new_password') {
-      setPasswordErrors(validatePassword(e.target.value));
-    }
+    setForm({ ...form, [e.target.name]: e.target.value });
   };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
     setError('');
 
-    const pwErrors = validatePassword(form.new_password);
-    if (pwErrors.length > 0) {
-      setError('Please fix password requirements below');
+    const rules = passwordRules(form.new_password);
+    if (rules.some(r => !r.met)) {
+      setError('Please meet all password requirements');
       return;
     }
     if (form.new_password !== form.confirm_password) {
@@ -50,11 +43,11 @@ const ResetPassword = () => {
     setLoading(true);
     try {
       await api.post('/auth/reset-password', {
-        email: form.email,
-        otp: form.otp,
+        email:        form.email,
+        otp:          form.otp,
         new_password: form.new_password,
       });
-      navigate('/login', { state: { message: 'Password reset successfully. Please log in.' } });
+      navigate('/login');
     } catch (err) {
       setError(err.response?.data?.error || 'Reset failed. Please try again.');
     } finally {
@@ -62,216 +55,217 @@ const ResetPassword = () => {
     }
   };
 
+  const rules = passwordRules(form.new_password);
+  const metCount = rules.filter(r => r.met).length;
+  const strengthColors = ['', '#DC2626', '#f0a500', '#2563eb', '#16A34A'];
+  const strengthLabels = ['', 'Weak', 'Fair', 'Good', 'Strong'];
+
   return (
-    <div style={styles.container}>
-      <div style={styles.card}>
-        <h1 style={styles.logo}>روشنی</h1>
-        <h2 style={styles.title}>Reset Password</h2>
-        <p style={styles.subtitle}>Enter the code sent to your email and choose a new password</p>
+    <div style={styles.page}>
+      <div style={styles.container}>
+        <Logo size="md" />
+        <p style={styles.tagline}>Learn Together, Grow Together</p>
 
-        {error && <div style={styles.error}>{error}</div>}
+        <div style={styles.card}>
+          <h2 style={styles.cardTitle}>Reset password</h2>
+          <p style={styles.cardSubtitle}>
+            Enter the code sent to your email and choose a new password
+          </p>
 
-        <form onSubmit={handleSubmit}>
+          {error && (
+            <Alert type="error" style={{ marginBottom: '16px' }}>
+              {error}
+            </Alert>
+          )}
 
-          <div style={styles.field}>
-            <label style={styles.label}>University Email</label>
-            <input
-              style={styles.input}
-              type="email"
-              name="email"
-              placeholder="yourname@cs.lgu.edu.pk"
-              value={form.email}
-              onChange={handleChange}
-              required
-            />
+          <form onSubmit={handleSubmit}>
+
+            <Field label="University Email" htmlFor="email">
+              <Input
+                id="email"
+                name="email"
+                type="email"
+                placeholder="you@university.edu.pk"
+                value={form.email}
+                onChange={handleChange}
+                required
+              />
+            </Field>
+
+            <Field label="Reset Code" htmlFor="otp">
+              <input
+                id="otp"
+                name="otp"
+                type="text"
+                inputMode="numeric"
+                placeholder="000000"
+                value={form.otp}
+                onChange={handleChange}
+                maxLength={6}
+                required
+                style={styles.otpInput}
+                onFocus={e => e.target.style.borderColor = 'var(--primary)'}
+                onBlur={e => e.target.style.borderColor = 'var(--border)'}
+              />
+            </Field>
+
+            <Field label="New Password" htmlFor="new_password">
+              <Input
+                id="new_password"
+                name="new_password"
+                type="password"
+                placeholder="Create a strong password"
+                value={form.new_password}
+                onChange={handleChange}
+                required
+              />
+              {form.new_password.length > 0 && (
+                <div style={{ marginTop: '8px' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '6px' }}>
+                    <div style={{
+                      flex: 1, height: '3px',
+                      background: 'var(--border)',
+                      borderRadius: '2px', overflow: 'hidden',
+                    }}>
+                      <div style={{
+                        height: '100%',
+                        width: `${(metCount / 4) * 100}%`,
+                        background: strengthColors[metCount],
+                        transition: 'width 0.3s, background 0.3s',
+                        borderRadius: '2px',
+                      }} />
+                    </div>
+                    <span style={{
+                      fontSize: '11px', fontWeight: '600',
+                      color: strengthColors[metCount], minWidth: '36px',
+                    }}>
+                      {strengthLabels[metCount]}
+                    </span>
+                  </div>
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '3px' }}>
+                    {rules.map(r => (
+                      <div key={r.label} style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                        <span style={{ fontSize: '11px', color: r.met ? '#16A34A' : 'var(--text-muted)', fontWeight: '600' }}>
+                          {r.met ? '✓' : '○'}
+                        </span>
+                        <span style={{ fontSize: '11px', color: r.met ? '#16A34A' : 'var(--text-muted)' }}>
+                          {r.label}
+                        </span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+            </Field>
+
+            <Field label="Confirm New Password" htmlFor="confirm_password">
+              <Input
+                id="confirm_password"
+                name="confirm_password"
+                type="password"
+                placeholder="Repeat new password"
+                value={form.confirm_password}
+                onChange={handleChange}
+                required
+              />
+              {form.confirm_password.length > 0 && (
+                <p style={{
+                  fontSize: '11px', marginTop: '4px', fontWeight: '600',
+                  color: form.new_password === form.confirm_password
+                    ? '#16A34A' : '#DC2626',
+                }}>
+                  {form.new_password === form.confirm_password
+                    ? '✓ Passwords match'
+                    : '✗ Passwords do not match'}
+                </p>
+              )}
+            </Field>
+
+            <Button
+              type="submit"
+              variant="primary"
+              fullWidth
+              size="lg"
+              disabled={loading}
+              style={{ marginTop: '4px' }}
+            >
+              {loading ? 'Resetting...' : 'Reset Password'}
+            </Button>
+
+          </form>
+
+          <div style={{ textAlign: 'center', marginTop: '16px' }}>
+            <Link to="/login" style={styles.link}>Back to login</Link>
           </div>
-
-          <div style={styles.field}>
-            <label style={styles.label}>Reset Code</label>
-            <input
-              style={styles.otpInput}
-              type="text"
-              name="otp"
-              placeholder="6-digit code"
-              value={form.otp}
-              onChange={handleChange}
-              maxLength={6}
-              required
-            />
-          </div>
-
-          <div style={styles.field}>
-            <label style={styles.label}>New Password</label>
-            <input
-              style={styles.input}
-              type="password"
-              name="new_password"
-              placeholder="Enter new password"
-              value={form.new_password}
-              onChange={handleChange}
-              required
-            />
-            {/* Password requirement checklist */}
-            {form.new_password.length > 0 && (
-              <div style={styles.requirementBox}>
-                {[
-                  { label: 'At least 8 characters',        met: form.new_password.length >= 8 },
-                  { label: 'At least one uppercase letter', met: /[A-Z]/.test(form.new_password) },
-                  { label: 'At least one number',           met: /[0-9]/.test(form.new_password) },
-                  { label: 'At least one special character',met: /[!@#$%^&*(),.?":{}|<>]/.test(form.new_password) },
-                ].map(req => (
-                  <p key={req.label} style={req.met ? styles.reqMet : styles.reqUnmet}>
-                    {req.met ? '✓' : '✗'} {req.label}
-                  </p>
-                ))}
-              </div>
-            )}
-          </div>
-
-          <div style={styles.field}>
-            <label style={styles.label}>Confirm New Password</label>
-            <input
-              style={styles.input}
-              type="password"
-              name="confirm_password"
-              placeholder="Repeat new password"
-              value={form.confirm_password}
-              onChange={handleChange}
-              required
-            />
-            {form.confirm_password.length > 0 && (
-              <p style={form.new_password === form.confirm_password ? styles.reqMet : styles.reqUnmet}>
-                {form.new_password === form.confirm_password ? '✓ Passwords match' : '✗ Passwords do not match'}
-              </p>
-            )}
-          </div>
-
-          <button
-            style={loading ? { ...styles.button, opacity: 0.7 } : styles.button}
-            type="submit"
-            disabled={loading}
-          >
-            {loading ? 'Resetting...' : 'Reset Password'}
-          </button>
-
-        </form>
-
-        <p style={styles.link}>
-          <Link to="/login" style={styles.linkText}>Back to Login</Link>
-        </p>
+        </div>
       </div>
     </div>
   );
 };
 
 const styles = {
-  container: {
+  page: {
     minHeight: '100vh',
+    background: 'var(--background)',
     display: 'flex',
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: '#f0f4f8',
-    padding: '20px',
+    padding: '24px',
   },
-  card: {
-    backgroundColor: '#fff',
-    padding: '40px',
-    borderRadius: '12px',
-    boxShadow: '0 4px 20px rgba(0,0,0,0.1)',
+  container: {
     width: '100%',
     maxWidth: '420px',
-    textAlign: 'center',
+    display: 'flex',
+    flexDirection: 'column',
+    alignItems: 'center',
   },
-  logo: {
-    fontSize: '48px',
-    marginBottom: '4px',
-  },
-  title: {
-    fontSize: '26px',
-    fontWeight: '700',
-    color: '#2d6a4f',
-    marginBottom: '8px',
-  },
-  subtitle: {
-    fontSize: '14px',
-    color: '#888',
+  tagline: {
+    fontSize: '13px',
+    color: 'var(--text-secondary)',
+    marginTop: '8px',
     marginBottom: '28px',
-    lineHeight: '1.6',
   },
-  error: {
-    backgroundColor: '#ffe5e5',
-    color: '#c0392b',
-    padding: '10px',
-    borderRadius: '8px',
-    marginBottom: '16px',
-    fontSize: '14px',
+  card: {
+    width: '100%',
+    background: 'var(--surface)',
+    borderRadius: 'var(--radius-lg)',
+    border: '1px solid var(--border)',
+    padding: '28px',
+    boxShadow: 'var(--shadow-sm)',
   },
-  field: {
-    marginBottom: '16px',
-    textAlign: 'left',
-  },
-  label: {
-    display: 'block',
-    fontSize: '14px',
-    fontWeight: '600',
-    color: '#555',
+  cardTitle: {
+    fontSize: '18px',
+    fontWeight: '700',
+    color: 'var(--text-primary)',
     marginBottom: '6px',
   },
-  input: {
-    width: '100%',
-    padding: '10px 14px',
-    borderRadius: '8px',
-    border: '1px solid #ddd',
-    fontSize: '14px',
-    outline: 'none',
-    boxSizing: 'border-box',
+  cardSubtitle: {
+    fontSize: '13px',
+    color: 'var(--text-secondary)',
+    marginBottom: '22px',
+    lineHeight: '1.6',
   },
   otpInput: {
     width: '100%',
-    padding: '14px',
-    borderRadius: '8px',
-    border: '2px solid #2d6a4f',
+    height: '52px',
+    padding: '0 16px',
+    borderRadius: 'var(--radius-sm)',
+    border: '1px solid var(--border)',
+    background: 'var(--surface)',
+    color: 'var(--text-primary)',
     fontSize: '24px',
+    fontWeight: '600',
     textAlign: 'center',
-    letterSpacing: '8px',
+    letterSpacing: '10px',
     outline: 'none',
     boxSizing: 'border-box',
-  },
-  requirementBox: {
-    marginTop: '8px',
-    padding: '10px 14px',
-    backgroundColor: '#f9f9f9',
-    borderRadius: '8px',
-  },
-  reqMet: {
-    fontSize: '12px',
-    color: '#2d6a4f',
-    margin: '3px 0',
-  },
-  reqUnmet: {
-    fontSize: '12px',
-    color: '#c0392b',
-    margin: '3px 0',
-  },
-  button: {
-    width: '100%',
-    padding: '12px',
-    backgroundColor: '#2d6a4f',
-    color: '#fff',
-    border: 'none',
-    borderRadius: '8px',
-    fontSize: '16px',
-    fontWeight: '600',
-    cursor: 'pointer',
-    marginBottom: '20px',
+    fontFamily: 'Inter, sans-serif',
+    transition: 'border-color 0.15s',
   },
   link: {
-    fontSize: '14px',
-    color: '#666',
-  },
-  linkText: {
-    color: '#2d6a4f',
-    fontWeight: '600',
+    fontSize: '13px',
+    color: 'var(--primary)',
+    fontWeight: '500',
     textDecoration: 'none',
   },
 };

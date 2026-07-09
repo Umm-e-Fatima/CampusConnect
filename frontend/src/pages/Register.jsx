@@ -186,7 +186,7 @@ const Register = () => {
                   value={form.semester}
                   onChange={handleChange}
                 >
-                  <option value="">—</option>
+                  <option value="">-</option>
                   {[1,2,3,4,5,6,7,8].map(s => (
                     <option key={s} value={s}>{s}</option>
                   ))}

@@ -58,7 +58,7 @@ const VerifyOTP = () => {
             <Field
               label="Verification Code"
               htmlFor="otp"
-              hint="Check your terminal — OTP prints there during development"
+              hint="Check your terminal-OTP prints there during development"
             >
               <input
                 id="otp"

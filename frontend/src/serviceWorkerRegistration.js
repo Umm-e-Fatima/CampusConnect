@@ -16,7 +16,7 @@ export function register() {
         checkValidServiceWorker(swUrl);
         navigator.serviceWorker.ready.then(() => {
           console.log(
-            'Roshni is being served cache-first by a service worker. ' +
+            'CampusConnect is being served cache-first by a service worker. ' +
             'To learn more, visit https://cra.link/PWA'
           );
         });
@@ -40,16 +40,16 @@ function registerValidSW(swUrl) {
           if (installingWorker.state === 'installed') {
             if (navigator.serviceWorker.controller) {
               // New content available-notify user
-              console.log('Roshni: new version available. Refresh to update.');
+              console.log('CampusConnect: new version available. Refresh to update.');
             } else {
-              console.log('Roshni: content cached for offline use.');
+              console.log('CampusConnect: content cached for offline use.');
             }
           }
         };
       };
     })
     .catch((error) => {
-      console.error('Roshni SW registration failed:', error);
+      console.error('CampusConnect SW registration failed:', error);
     });
 }
 
@@ -72,7 +72,7 @@ function checkValidServiceWorker(swUrl) {
       }
     })
     .catch(() => {
-      console.log('Roshni: no internet connection. App running in offline mode.');
+      console.log('CampusConnect: no internet connection. App running in offline mode.');
     });
 }
 

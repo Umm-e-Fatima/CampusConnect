@@ -203,9 +203,9 @@ const Books = () => {
                   value={createForm.listing_type}
                   onChange={(e) => setCreateForm({ ...createForm, listing_type: e.target.value })}
                 >
-                  <option value="gift">Gift — Free</option>
-                  <option value="borrow">Borrow — Per day</option>
-                  <option value="buy">Buy — Fixed price</option>
+                  <option value="gift">Gift-Free</option>
+                  <option value="borrow">Borrow-Per day</option>
+                  <option value="buy">Buy-Fixed price</option>
                 </select>
               </div>
             </div>

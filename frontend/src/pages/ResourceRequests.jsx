@@ -1,34 +1,44 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { useAuth } from '../context/AuthContext';
 import api from '../utils/api';
+import {
+  Navbar, PageWrapper, PageContent, PageHeader,
+  Button, Card, Badge, Field, Input,
+  Alert, EmptyState, Tabs,
+} from '../components/UI';
 
 const ResourceRequests = () => {
-  const [activeTab, setActiveTab] = useState('seller');
+  const [activeTab, setActiveTab]         = useState('seller');
   const [sellerRequests, setSellerRequests] = useState([]);
-  const [buyerRequests, setBuyerRequests] = useState([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState('');
-  const [confirmData, setConfirmData] = useState({ request_id: '', pin: '' });
-  const [confirmMsg, setConfirmMsg] = useState('');
-  const [downloadInfo, setDownloadInfo] = useState(null);
+  const [buyerRequests, setBuyerRequests]   = useState([]);
+  const [loading, setLoading]             = useState(true);
+  const [error, setError]                 = useState('');
+  const [confirmData, setConfirmData]     = useState({ request_id: '', pin: '' });
+  const [confirmMsg, setConfirmMsg]       = useState('');
+  const [downloadInfo, setDownloadInfo]   = useState(null);
+
+  const { user, logout } = useAuth();
   const navigate = useNavigate();
+
+  const handleLogout = async () => {
+    try { await api.post('/auth/logout'); } catch (_) {}
+    logout();
+    navigate('/login');
+  };
 
   const fetchSellerRequests = async () => {
     try {
       const res = await api.get('/resource-requests/seller/pending');
       setSellerRequests(res.data);
-    } catch (err) {
-      setError('Failed to fetch seller requests');
-    }
+    } catch (_) {}
   };
 
   const fetchBuyerRequests = async () => {
     try {
       const res = await api.get('/resource-requests/buyer/my-requests');
       setBuyerRequests(res.data);
-    } catch (err) {
-      setError('Failed to fetch your requests');
-    }
+    } catch (_) {}
   };
 
   useEffect(() => {
@@ -58,7 +68,6 @@ const ResourceRequests = () => {
     try {
       const res = await api.post(`/resource-requests/${requestId}/download`);
       setDownloadInfo(res.data);
-      // Open the download URL in a new tab automatically
       window.open(res.data.download_url, '_blank');
       fetchBuyerRequests();
     } catch (err) {
@@ -66,505 +75,384 @@ const ResourceRequests = () => {
     }
   };
 
-  const getStatusBadge = (request) => {
-    if (!request.seller_confirmed)
-      return { label: 'Awaiting Payment Confirmation', color: '#f57f17', bg: '#fff8e1' };
-    if (new Date() > new Date(request.download_expires_at))
-      return { label: 'Expired', color: '#c0392b', bg: '#ffe5e5' };
-    if (request.download_count >= 3)
-      return { label: 'Download Limit Reached', color: '#888', bg: '#f5f5f5' };
-    return { label: 'Ready to Download', color: '#2d6a4f', bg: '#e8f5e9' };
+  const getStatus = (r) => {
+    if (!r.seller_confirmed)
+      return { label: 'Awaiting confirmation', tone: 'gold' };
+    if (new Date() > new Date(r.download_expires_at))
+      return { label: 'Expired', tone: 'gray' };
+    if (r.download_count >= 3)
+      return { label: 'Download limit reached', tone: 'gray' };
+    return { label: 'Ready to download', tone: 'green' };
   };
 
+  const canDownload = (r) =>
+    r.seller_confirmed &&
+    new Date() <= new Date(r.download_expires_at) &&
+    r.download_count < 3;
+
   return (
-    <div style={styles.container}>
+    <PageWrapper>
+      <Navbar userName={user?.full_name} onLogout={handleLogout} />
 
-      {/* Header */}
-      <div style={styles.header}>
-        <button style={styles.backBtn} onClick={() => navigate('/home')}>
-          Back
-        </button>
-        <h1 style={styles.title}>Resource Requests</h1>
-      </div>
+      <PageContent>
+        <PageHeader
+          title="Resource Requests"
+          onBack={() => navigate('/home')}
+        />
 
-      {/* Tabs */}
-      <div style={styles.tabs}>
-        <button
-          style={activeTab === 'seller' ? styles.tabActive : styles.tab}
-          onClick={() => setActiveTab('seller')}
-        >
-          Seller Dashboard
-        </button>
-        <button
-          style={activeTab === 'buyer' ? styles.tabActive : styles.tab}
-          onClick={() => setActiveTab('buyer')}
-        >
-          My Purchases
-        </button>
-      </div>
+        <Tabs
+          tabs={[
+            { label: 'Seller Dashboard', value: 'seller' },
+            { label: 'My Purchases',     value: 'buyer'  },
+          ]}
+          active={activeTab}
+          onChange={setActiveTab}
+        />
 
-      {error && <div style={styles.error}>{error}</div>}
-      {loading && <p style={styles.message}>Loading...</p>}
+        {error && <Alert type="error" style={{ marginBottom: '16px' }}>{error}</Alert>}
+        {loading && (
+          <p style={{ color: 'var(--text-muted)', textAlign: 'center', padding: '48px 0' }}>
+            Loading...
+          </p>
+        )}
 
-      {/* ── SELLER TAB ── */}
-      {!loading && activeTab === 'seller' && (
-        <>
-          {/* PIN Confirmation Box */}
-          <div style={styles.confirmBox}>
-            <h2 style={styles.confirmTitle}>Confirm Buyer Payment</h2>
-            <p style={styles.confirmSubtitle}>
-              Once the buyer pays you outside the app (JazzCash, bank transfer etc.),
-              enter the request ID and PIN they show you to grant them download access.
-            </p>
+        {/* ── Seller Tab  */}
+        {!loading && activeTab === 'seller' && (
+          <>
+            {/* PIN Confirm box */}
+            <Card style={{ marginBottom: '24px', maxWidth: '520px' }}>
+              <h2 style={styles.sectionTitle}>Confirm buyer payment</h2>
+              <p style={styles.sectionSubtitle}>
+                Once the buyer pays you outside the app (JazzCash, bank transfer),
+                enter the request ID and PIN they show you to grant download access.
+              </p>
 
-            {confirmMsg && (
-              <div style={
-                confirmMsg.includes('confirmed') ? styles.success : styles.error
-              }>
-                {confirmMsg}
-              </div>
+              {confirmMsg && (
+                <Alert
+                  type={confirmMsg.includes('confirmed') ? 'success' : 'error'}
+                  style={{ marginBottom: '16px' }}
+                >
+                  {confirmMsg}
+                </Alert>
+              )}
+
+              <Field label="Request ID">
+                <Input
+                  placeholder="Paste the request ID from buyer"
+                  value={confirmData.request_id}
+                  onChange={e => setConfirmData({ ...confirmData, request_id: e.target.value })}
+                />
+              </Field>
+
+              <Field label="PIN">
+                <input
+                  type="text"
+                  placeholder="4-digit PIN"
+                  maxLength={4}
+                  value={confirmData.pin}
+                  onChange={e => setConfirmData({ ...confirmData, pin: e.target.value })}
+                  style={styles.pinInput}
+                  onFocus={e => e.target.style.borderColor = 'var(--primary)'}
+                  onBlur={e => e.target.style.borderColor = 'var(--border)'}
+                />
+              </Field>
+
+              <Button variant="primary" fullWidth onClick={handleConfirmPin}>
+                Confirm Payment Received
+              </Button>
+            </Card>
+
+            {/* Pending requests list */}
+            <h2 style={{ ...styles.sectionTitle, marginBottom: '12px' }}>
+              Pending requests ({sellerRequests.length})
+            </h2>
+
+            {sellerRequests.length === 0 && (
+              <EmptyState
+                title="No pending requests"
+                description="When students request your paid resources they will appear here"
+              />
             )}
 
-            <div style={styles.field}>
-              <label style={styles.label}>Request ID</label>
-              <input
-                style={styles.input}
-                type="text"
-                placeholder="Paste the request ID from buyer"
-                value={confirmData.request_id}
-                onChange={(e) => setConfirmData({ ...confirmData, request_id: e.target.value })}
-              />
-            </div>
-
-            <div style={styles.field}>
-              <label style={styles.label}>PIN</label>
-              <input
-                style={styles.pinInput}
-                type="text"
-                placeholder="4-digit PIN"
-                maxLength={4}
-                value={confirmData.pin}
-                onChange={(e) => setConfirmData({ ...confirmData, pin: e.target.value })}
-              />
-            </div>
-
-            <button style={styles.confirmBtn} onClick={handleConfirmPin}>
-              Confirm Payment Received
-            </button>
-          </div>
-
-          {/* Pending Requests List */}
-          <h2 style={styles.sectionTitle}>
-            Pending Requests ({sellerRequests.length})
-          </h2>
-
-          {sellerRequests.length === 0 && (
-            <div style={styles.empty}>
-              <h3 style={styles.emptyTitle}>No pending requests</h3>
-              <p style={styles.emptyText}>
-                When students request your paid resources, they will appear here
-              </p>
-            </div>
-          )}
-
-          <div style={styles.list}>
-            {sellerRequests.map(r => (
-              <div key={r.id} style={styles.card}>
-                <div style={styles.cardTop}>
-                  <h3 style={styles.cardTitle}>{r.resource_title}</h3>
-                  <span style={styles.courseTag}>{r.course_code}</span>
-                </div>
-                <div style={styles.cardMeta}>
-                  <p>Requested by: <strong>{r.requester_name}</strong></p>
-                  <p>Email: {r.requester_email}</p>
-                  <p>
-                    Type: {r.listing_type.charAt(0).toUpperCase() + r.listing_type.slice(1)}
-                    {r.borrow_days && ` · ${r.borrow_days} days`}
-                    {` · Rs. ${r.listing_type === 'borrow'
-                      ? (r.price * r.borrow_days).toFixed(2)
-                      : parseFloat(r.price).toFixed(2)}`}
-                  </p>
-                  <p style={styles.requestId}>Request ID: <code>{r.id}</code></p>
-                </div>
-                <div style={styles.statusRow}>
-                  <span style={{
-                    ...styles.statusBadge,
-                    backgroundColor: r.seller_confirmed ? '#e8f5e9' : '#fff8e1',
-                    color: r.seller_confirmed ? '#2d6a4f' : '#f57f17',
-                  }}>
-                    {r.seller_confirmed ? 'Payment Confirmed' : 'Awaiting Your Confirmation'}
-                  </span>
-                </div>
-              </div>
-            ))}
-          </div>
-        </>
-      )}
-
-      {/* ── BUYER TAB ── */}
-      {!loading && activeTab === 'buyer' && (
-        <>
-          {downloadInfo && (
-            <div style={styles.downloadBox}>
-              <p style={styles.downloadTitle}>Download link generated</p>
-              <p style={styles.downloadMeta}>
-                Link expires in 10 minutes · {downloadInfo.attempts_remaining} attempt(s) remaining
-              </p>
-              <a
-                href={downloadInfo.download_url}
-                target="_blank"
-                rel="noopener noreferrer"
-                style={styles.downloadLink}
-              >
-                Click here if download did not start automatically
-              </a>
-              <p style={styles.downloadNote}>{downloadInfo.message}</p>
-            </div>
-          )}
-
-          {buyerRequests.length === 0 && (
-            <div style={styles.empty}>
-              <h3 style={styles.emptyTitle}>No purchases yet</h3>
-              <p style={styles.emptyText}>
-                Resources you request will appear here with their download status
-              </p>
-            </div>
-          )}
-
-          <div style={styles.list}>
-            {buyerRequests.map(r => {
-              const status = getStatusBadge(r);
-              return (
-                <div key={r.id} style={styles.card}>
-                  <div style={styles.cardTop}>
-                    <h3 style={styles.cardTitle}>{r.resource_title}</h3>
-                    <span style={styles.courseTag}>{r.course_code}</span>
+            <div style={styles.list}>
+              {sellerRequests.map(r => (
+                <Card key={r.id} style={styles.requestCard}>
+                  <div style={styles.requestTop}>
+                    <div>
+                      <h3 style={styles.requestTitle}>{r.resource_title}</h3>
+                      <p style={styles.requestMeta}>
+                        {r.course_code && `${r.course_code} · `}
+                        {r.listing_type.charAt(0).toUpperCase() + r.listing_type.slice(1)}
+                        {r.borrow_days && ` · ${r.borrow_days} days`}
+                        {` · Rs. ${r.listing_type === 'borrow'
+                          ? (r.price * r.borrow_days).toFixed(2)
+                          : parseFloat(r.price).toFixed(2)}`}
+                      </p>
+                    </div>
+                    <Badge tone={r.seller_confirmed ? 'green' : 'gold'}>
+                      {r.seller_confirmed ? 'Confirmed' : 'Pending'}
+                    </Badge>
                   </div>
 
-                  <div style={styles.cardMeta}>
-                    <p>Seller: <strong>{r.seller_name}</strong></p>
-                    <p>
-                      {r.listing_type.charAt(0).toUpperCase() + r.listing_type.slice(1)}
-                      {r.borrow_days && ` · ${r.borrow_days} days`}
-                    </p>
-                    {r.seller_confirmed && (
-                      <p>
-                        Downloads used: {r.download_count}/3 ·
-                        Window expires: {new Date(r.download_expires_at).toLocaleString()}
-                      </p>
-                    )}
-                    {!r.seller_confirmed && (
-                      <div style={styles.pinBox}>
-                        <p style={styles.pinLabel}>Show this PIN to the seller:</p>
-                        <p style={styles.pinCode}>{r.pin_code}</p>
-                        <p style={styles.requestId}>
-                          Request ID: <code>{r.id}</code>
+                  <div style={styles.requesterRow}>
+                    <div style={styles.avatar}>
+                      {r.requester_name?.charAt(0).toUpperCase()}
+                    </div>
+                    <div>
+                      <p style={styles.requesterName}>{r.requester_name}</p>
+                      <p style={styles.requesterEmail}>{r.requester_email}</p>
+                    </div>
+                  </div>
+
+                  <div style={styles.requestIdRow}>
+                    <span style={styles.requestIdLabel}>Request ID:</span>
+                    <code style={styles.requestIdCode}>{r.id}</code>
+                  </div>
+                </Card>
+              ))}
+            </div>
+          </>
+        )}
+
+        {/* ── Buyer Tab  */}
+        {!loading && activeTab === 'buyer' && (
+          <>
+            {downloadInfo && (
+              <Card style={{ marginBottom: '20px', border: '1px solid var(--success)' }}>
+                <p style={{ fontSize: '14px', fontWeight: '600', color: 'var(--success)', marginBottom: '6px' }}>
+                  Download link generated
+                </p>
+                <p style={{ fontSize: '13px', color: 'var(--text-secondary)', marginBottom: '12px' }}>
+                  Link expires in 10 minutes
+                  {downloadInfo.attempts_remaining !== undefined &&
+                    ` · ${downloadInfo.attempts_remaining} attempt(s) remaining`}
+                </p>
+                <a
+                  href={downloadInfo.download_url}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  style={styles.downloadLink}
+                >
+                  Click here if download did not start
+                </a>
+                <p style={{ fontSize: '12px', color: 'var(--text-muted)', marginTop: '8px' }}>
+                  {downloadInfo.message}
+                </p>
+              </Card>
+            )}
+
+            {buyerRequests.length === 0 && (
+              <EmptyState
+                title="No purchases yet"
+                description="Resources you request will appear here with their download status"
+              />
+            )}
+
+            <div style={styles.list}>
+              {buyerRequests.map(r => {
+                const status = getStatus(r);
+                return (
+                  <Card key={r.id} style={styles.requestCard}>
+                    <div style={styles.requestTop}>
+                      <div style={{ flex: 1, minWidth: 0 }}>
+                        <h3 style={styles.requestTitle}>{r.resource_title}</h3>
+                        <p style={styles.requestMeta}>
+                          {r.course_code && `${r.course_code} · `}
+                          Seller: {r.seller_name}
+                          {r.borrow_days && ` · ${r.borrow_days} days`}
+                        </p>
+                      </div>
+                      <Badge tone={status.tone}>{status.label}</Badge>
+                    </div>
+
+                    {/* PIN display for buyer */}
+                    {!r.seller_confirmed && r.pin_code && (
+                      <div style={styles.buyerPinBox}>
+                        <p style={styles.buyerPinLabel}>Show this PIN to the seller:</p>
+                        <p style={styles.buyerPinCode}>{r.pin_code}</p>
+                        <p style={styles.requestIdRow}>
+                          <span style={styles.requestIdLabel}>Request ID: </span>
+                          <code style={styles.requestIdCode}>{r.id}</code>
                         </p>
                       </div>
                     )}
-                  </div>
 
-                  <div style={styles.statusRow}>
-                    <span style={{
-                      ...styles.statusBadge,
-                      backgroundColor: status.bg,
-                      color: status.color,
-                    }}>
-                      {status.label}
-                    </span>
-
-                    {r.seller_confirmed &&
-                     new Date() <= new Date(r.download_expires_at) &&
-                     r.download_count < 3 && (
-                      <button
-                        style={styles.downloadBtn}
-                        onClick={() => handleDownload(r.id)}
-                      >
-                        Download ({3 - r.download_count} left)
-                      </button>
+                    {/* Download info */}
+                    {r.seller_confirmed && (
+                      <div style={styles.downloadInfoRow}>
+                        <p style={{ fontSize: '12px', color: 'var(--text-muted)' }}>
+                          Downloads used: {r.download_count}/3
+                          {r.download_expires_at &&
+                            ` · Window expires: ${new Date(r.download_expires_at).toLocaleString()}`}
+                        </p>
+                      </div>
                     )}
-                  </div>
-                </div>
-              );
-            })}
-          </div>
-        </>
-      )}
 
-    </div>
+                    {canDownload(r) && (
+                      <div style={{ marginTop: '12px' }}>
+                        <Button
+                          variant="primary"
+                          size="sm"
+                          onClick={() => handleDownload(r.id)}
+                        >
+                          Download ({3 - r.download_count} attempt{3 - r.download_count !== 1 ? 's' : ''} left)
+                        </Button>
+                      </div>
+                    )}
+                  </Card>
+                );
+              })}
+            </div>
+          </>
+        )}
+
+      </PageContent>
+    </PageWrapper>
   );
 };
 
 const styles = {
-  container: {
-    minHeight: '100vh',
-    backgroundColor: '#f0f4f8',
-    padding: '24px',
-  },
-  header: {
-    display: 'flex',
-    alignItems: 'center',
-    gap: '16px',
-    marginBottom: '24px',
-  },
-  backBtn: {
-    padding: '8px 16px',
-    backgroundColor: '#fff',
-    border: '1px solid #ddd',
-    borderRadius: '8px',
-    fontSize: '14px',
-    cursor: 'pointer',
-    color: '#555',
-  },
-  title: {
-    fontSize: '24px',
-    fontWeight: '700',
-    color: '#2d6a4f',
-  },
-  tabs: {
-    display: 'flex',
-    gap: '8px',
-    marginBottom: '24px',
-  },
-  tab: {
-    padding: '10px 20px',
-    backgroundColor: '#fff',
-    border: '1px solid #ddd',
-    borderRadius: '8px',
-    fontSize: '14px',
-    cursor: 'pointer',
-    color: '#555',
-    fontWeight: '500',
-  },
-  tabActive: {
-    padding: '10px 20px',
-    backgroundColor: '#2d6a4f',
-    border: '1px solid #2d6a4f',
-    borderRadius: '8px',
-    fontSize: '14px',
-    cursor: 'pointer',
-    color: '#fff',
-    fontWeight: '600',
-  },
-  confirmBox: {
-    backgroundColor: '#fff',
-    padding: '24px',
-    borderRadius: '12px',
-    boxShadow: '0 2px 10px rgba(0,0,0,0.08)',
-    marginBottom: '24px',
-  },
-  confirmTitle: {
-    fontSize: '18px',
-    fontWeight: '700',
-    color: '#2d6a4f',
-    marginBottom: '8px',
-  },
-  confirmSubtitle: {
-    fontSize: '14px',
-    color: '#888',
-    marginBottom: '20px',
-    lineHeight: '1.6',
-  },
-  field: {
-    marginBottom: '16px',
-  },
-  label: {
-    display: 'block',
-    fontSize: '14px',
-    fontWeight: '600',
-    color: '#555',
-    marginBottom: '6px',
-  },
-  input: {
-    width: '100%',
-    padding: '10px 14px',
-    borderRadius: '8px',
-    border: '1px solid #ddd',
-    fontSize: '14px',
-    outline: 'none',
-    boxSizing: 'border-box',
-  },
-  pinInput: {
-    width: '100%',
-    padding: '14px',
-    borderRadius: '8px',
-    border: '2px solid #2d6a4f',
-    fontSize: '24px',
-    textAlign: 'center',
-    letterSpacing: '8px',
-    outline: 'none',
-    boxSizing: 'border-box',
-  },
-  confirmBtn: {
-    width: '100%',
-    padding: '12px',
-    backgroundColor: '#2d6a4f',
-    color: '#fff',
-    border: 'none',
-    borderRadius: '8px',
+  sectionTitle: {
     fontSize: '15px',
     fontWeight: '600',
-    cursor: 'pointer',
+    color: 'var(--text-primary)',
+    marginBottom: '6px',
   },
-  sectionTitle: {
-    fontSize: '18px',
-    fontWeight: '700',
-    color: '#333',
-    marginBottom: '16px',
-  },
-  error: {
-    backgroundColor: '#ffe5e5',
-    color: '#c0392b',
-    padding: '10px',
-    borderRadius: '8px',
-    marginBottom: '16px',
-    fontSize: '14px',
-  },
-  success: {
-    backgroundColor: '#e8f5e9',
-    color: '#2d6a4f',
-    padding: '10px',
-    borderRadius: '8px',
-    marginBottom: '16px',
-    fontSize: '14px',
-  },
-  message: {
-    color: '#888',
-    textAlign: 'center',
-    padding: '40px',
-  },
-  empty: {
-    textAlign: 'center',
-    padding: '60px 20px',
-    backgroundColor: '#fff',
-    borderRadius: '12px',
-    boxShadow: '0 2px 10px rgba(0,0,0,0.08)',
-  },
-  emptyTitle: {
-    fontSize: '18px',
-    fontWeight: '600',
-    color: '#555',
-    marginBottom: '8px',
-  },
-  emptyText: {
-    fontSize: '14px',
-    color: '#aaa',
+  sectionSubtitle: {
+    fontSize: '13px',
+    color: 'var(--text-secondary)',
+    marginBottom: '20px',
+    lineHeight: '1.6',
   },
   list: {
     display: 'flex',
     flexDirection: 'column',
-    gap: '16px',
+    gap: '10px',
   },
-  card: {
-    backgroundColor: '#fff',
-    padding: '20px 24px',
-    borderRadius: '12px',
-    boxShadow: '0 2px 10px rgba(0,0,0,0.08)',
+  requestCard: {
+    padding: '18px 20px',
   },
-  cardTop: {
+  requestTop: {
     display: 'flex',
     justifyContent: 'space-between',
-    alignItems: 'center',
+    alignItems: 'flex-start',
+    gap: '12px',
     marginBottom: '12px',
   },
-  cardTitle: {
-    fontSize: '16px',
-    fontWeight: '600',
-    color: '#333',
-  },
-  courseTag: {
-    padding: '4px 10px',
-    backgroundColor: '#e8f5e9',
-    color: '#2d6a4f',
-    borderRadius: '20px',
-    fontSize: '12px',
-    fontWeight: '600',
-  },
-  cardMeta: {
+  requestTitle: {
     fontSize: '14px',
-    color: '#666',
-    lineHeight: '1.8',
-    marginBottom: '12px',
+    fontWeight: '600',
+    color: 'var(--text-primary)',
+    marginBottom: '3px',
   },
-  requestId: {
+  requestMeta: {
     fontSize: '12px',
-    color: '#aaa',
-    marginTop: '4px',
+    color: 'var(--text-muted)',
   },
-  statusRow: {
+  requesterRow: {
     display: 'flex',
     alignItems: 'center',
-    gap: '12px',
+    gap: '10px',
+    marginBottom: '12px',
+    padding: '10px 12px',
+    background: 'var(--surface-muted)',
+    borderRadius: 'var(--radius-sm)',
+  },
+  avatar: {
+    width: '32px',
+    height: '32px',
+    borderRadius: '50%',
+    background: 'var(--primary-light)',
+    color: 'var(--primary)',
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+    fontSize: '13px',
+    fontWeight: '600',
+    flexShrink: 0,
+  },
+  requesterName: {
+    fontSize: '13px',
+    fontWeight: '500',
+    color: 'var(--text-primary)',
+  },
+  requesterEmail: {
+    fontSize: '11px',
+    color: 'var(--text-muted)',
+  },
+  requestIdRow: {
+    display: 'flex',
+    alignItems: 'center',
+    gap: '6px',
     flexWrap: 'wrap',
   },
-  statusBadge: {
-    padding: '4px 12px',
-    borderRadius: '20px',
-    fontSize: '12px',
-    fontWeight: '600',
+  requestIdLabel: {
+    fontSize: '11px',
+    color: 'var(--text-muted)',
   },
-  pinBox: {
-    backgroundColor: '#2d6a4f',
-    color: '#fff',
-    padding: '16px',
-    borderRadius: '8px',
+  requestIdCode: {
+    fontSize: '11px',
+    background: 'var(--surface-muted)',
+    padding: '2px 6px',
+    borderRadius: '4px',
+    color: 'var(--text-secondary)',
+    fontFamily: 'monospace',
+    wordBreak: 'break-all',
+  },
+  buyerPinBox: {
+    background: 'var(--primary)',
+    borderRadius: 'var(--radius-md)',
+    padding: '16px 20px',
     textAlign: 'center',
-    marginTop: '8px',
-  },
-  pinLabel: {
-    fontSize: '13px',
-    opacity: 0.85,
-    marginBottom: '6px',
-  },
-  pinCode: {
-    fontSize: '36px',
-    fontWeight: '700',
-    letterSpacing: '10px',
-    marginBottom: '8px',
-  },
-  downloadBox: {
-    backgroundColor: '#e8f5e9',
-    padding: '20px 24px',
-    borderRadius: '12px',
-    marginBottom: '24px',
-    border: '1px solid #2d6a4f',
-  },
-  downloadTitle: {
-    fontSize: '16px',
-    fontWeight: '700',
-    color: '#2d6a4f',
-    marginBottom: '6px',
-  },
-  downloadMeta: {
-    fontSize: '13px',
-    color: '#555',
-    marginBottom: '12px',
-  },
-  downloadLink: {
-    display: 'inline-block',
-    padding: '8px 20px',
-    backgroundColor: '#2d6a4f',
-    color: '#fff',
-    borderRadius: '8px',
-    fontSize: '14px',
-    fontWeight: '600',
-    textDecoration: 'none',
     marginBottom: '10px',
   },
-  downloadNote: {
+  buyerPinLabel: {
     fontSize: '12px',
-    color: '#888',
-    marginTop: '8px',
+    color: 'rgba(255,255,255,0.75)',
+    marginBottom: '6px',
   },
-  downloadBtn: {
-    padding: '8px 20px',
-    backgroundColor: '#2d6a4f',
+  buyerPinCode: {
+    fontSize: '36px',
+    fontWeight: '700',
     color: '#fff',
-    border: 'none',
-    borderRadius: '8px',
-    fontSize: '14px',
+    letterSpacing: '12px',
+    marginBottom: '8px',
+  },
+  downloadInfoRow: {
+    marginTop: '8px',
+    padding: '8px 12px',
+    background: 'var(--surface-muted)',
+    borderRadius: 'var(--radius-sm)',
+  },
+  downloadLink: {
+    display: 'inline-flex',
+    alignItems: 'center',
+    height: '34px',
+    padding: '0 14px',
+    background: 'var(--success)',
+    color: '#fff',
+    borderRadius: 'var(--radius-sm)',
+    fontSize: '13px',
+    fontWeight: '500',
+    textDecoration: 'none',
+  },
+  pinInput: {
+    width: '100%',
+    height: '52px',
+    padding: '0 16px',
+    borderRadius: 'var(--radius-sm)',
+    border: '1px solid var(--border)',
+    background: 'var(--surface)',
+    color: 'var(--text-primary)',
+    fontSize: '24px',
     fontWeight: '600',
-    cursor: 'pointer',
+    textAlign: 'center',
+    letterSpacing: '8px',
+    outline: 'none',
+    boxSizing: 'border-box',
+    fontFamily: 'Inter, sans-serif',
+    transition: 'border-color 0.15s',
+    marginBottom: '4px',
   },
 };
 

@@ -1,12 +1,13 @@
 import React, { useState } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import api from '../utils/api';
+import { Button, Field, Input, Alert, Logo } from '../components/UI';
 
 const ForgotPassword = () => {
-  const [email, setEmail] = useState('');
+  const [email, setEmail]         = useState('');
   const [submitted, setSubmitted] = useState(false);
-  const [error, setError] = useState('');
-  const [loading, setLoading] = useState(false);
+  const [error, setError]         = useState('');
+  const [loading, setLoading]     = useState(false);
   const navigate = useNavigate();
 
   const handleSubmit = async (e) => {
@@ -25,149 +26,155 @@ const ForgotPassword = () => {
 
   if (submitted) {
     return (
-      <div style={styles.container}>
-        <div style={styles.card}>
-          <h1 style={styles.logo}>روشنی</h1>
-          <h2 style={styles.title}>Check Your Email</h2>
-          <p style={styles.subtitle}>
-            If <strong>{email}</strong> is registered, a reset code has been sent.
-            Check your inbox and enter the code on the next screen.
-          </p>
-          <button
-            style={styles.button}
-            onClick={() => navigate('/reset-password', { state: { email } })}
-          >
-            Enter Reset Code
-          </button>
-          <p style={styles.link}>
-            <Link to="/login" style={styles.linkText}>Back to Login</Link>
-          </p>
+      <div style={styles.page}>
+        <div style={styles.container}>
+          <Logo size="md" />
+          <p style={styles.tagline}>Learn Together, Grow Together</p>
+
+          <div style={styles.card}>
+            <div style={styles.successIcon}>
+              <svg width="28" height="28" viewBox="0 0 24 24" fill="none"
+                stroke="var(--success)" strokeWidth="2.5" strokeLinecap="round"
+                strokeLinejoin="round">
+                <path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07A19.5 19.5 0 0 1 4.69 12 19.79 19.79 0 0 1 1.61 3.36 2 2 0 0 1 3.6 1h3a2 2 0 0 1 2 1.72c.127.96.361 1.903.7 2.81a2 2 0 0 1-.45 2.11L7.91 8.96a16 16 0 0 0 6.13 6.13l1.02-.95a2 2 0 0 1 2.11-.45c.907.339 1.85.573 2.81.7A2 2 0 0 1 22 16.92z"/>
+              </svg>
+            </div>
+            <h2 style={styles.cardTitle}>Check your email</h2>
+            <p style={styles.cardSubtitle}>
+              If <strong style={{ color: 'var(--primary)' }}>{email}</strong> is
+              registered, a reset code has been sent. Check your inbox and enter
+              the code on the next screen.
+            </p>
+
+            <Button
+              variant="primary"
+              fullWidth
+              size="lg"
+              onClick={() => navigate('/reset-password', { state: { email } })}
+              style={{ marginBottom: '12px' }}
+            >
+              Enter Reset Code
+            </Button>
+
+            <div style={{ textAlign: 'center' }}>
+              <Link to="/login" style={styles.link}>Back to login</Link>
+            </div>
+          </div>
         </div>
       </div>
     );
   }
 
   return (
-    <div style={styles.container}>
-      <div style={styles.card}>
-        <h1 style={styles.logo}>روشنی</h1>
-        <h2 style={styles.title}>Forgot Password</h2>
-        <p style={styles.subtitle}>
-          Enter your university email and we will send you a reset code
-        </p>
+    <div style={styles.page}>
+      <div style={styles.container}>
+        <Logo size="md" />
+        <p style={styles.tagline}>Learn Together, Grow Together</p>
 
-        {error && <div style={styles.error}>{error}</div>}
+        <div style={styles.card}>
+          <h2 style={styles.cardTitle}>Forgot password?</h2>
+          <p style={styles.cardSubtitle}>
+            Enter your university email and we will send you a reset code
+          </p>
 
-        <form onSubmit={handleSubmit}>
-          <div style={styles.field}>
-            <label style={styles.label}>University Email</label>
-            <input
-              style={styles.input}
-              type="email"
-              placeholder="yourname@cs.lgu.edu.pk"
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-              required
-            />
+          {error && (
+            <Alert type="error" style={{ marginBottom: '16px' }}>
+              {error}
+            </Alert>
+          )}
+
+          <form onSubmit={handleSubmit}>
+            <Field label="University Email" htmlFor="email">
+              <Input
+                id="email"
+                type="email"
+                placeholder="you@university.edu.pk"
+                value={email}
+                onChange={e => setEmail(e.target.value)}
+                autoComplete="email"
+                required
+              />
+            </Field>
+
+            <Button
+              type="submit"
+              variant="primary"
+              fullWidth
+              size="lg"
+              disabled={loading}
+              style={{ marginTop: '4px' }}
+            >
+              {loading ? 'Sending...' : 'Send Reset Code'}
+            </Button>
+          </form>
+
+          <div style={{ textAlign: 'center', marginTop: '16px' }}>
+            <Link to="/login" style={styles.link}>Back to login</Link>
           </div>
-          <button
-            style={loading ? { ...styles.button, opacity: 0.7 } : styles.button}
-            type="submit"
-            disabled={loading}
-          >
-            {loading ? 'Sending...' : 'Send Reset Code'}
-          </button>
-        </form>
-
-        <p style={styles.link}>
-          <Link to="/login" style={styles.linkText}>Back to Login</Link>
-        </p>
+        </div>
       </div>
     </div>
   );
 };
 
 const styles = {
-  container: {
+  page: {
     minHeight: '100vh',
+    background: 'var(--background)',
     display: 'flex',
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: '#f0f4f8',
-    padding: '20px',
+    padding: '24px',
   },
-  card: {
-    backgroundColor: '#fff',
-    padding: '40px',
-    borderRadius: '12px',
-    boxShadow: '0 4px 20px rgba(0,0,0,0.1)',
+  container: {
     width: '100%',
     maxWidth: '420px',
+    display: 'flex',
+    flexDirection: 'column',
+    alignItems: 'center',
+  },
+  tagline: {
+    fontSize: '13px',
+    color: 'var(--text-secondary)',
+    marginTop: '8px',
+    marginBottom: '28px',
+  },
+  card: {
+    width: '100%',
+    background: 'var(--surface)',
+    borderRadius: 'var(--radius-lg)',
+    border: '1px solid var(--border)',
+    padding: '28px',
+    boxShadow: 'var(--shadow-sm)',
+  },
+  successIcon: {
+    width: '52px',
+    height: '52px',
+    background: 'var(--success-bg)',
+    borderRadius: '50%',
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+    margin: '0 auto 16px',
+  },
+  cardTitle: {
+    fontSize: '18px',
+    fontWeight: '700',
+    color: 'var(--text-primary)',
+    marginBottom: '6px',
     textAlign: 'center',
   },
-  logo: {
-    fontSize: '48px',
-    marginBottom: '4px',
-  },
-  title: {
-    fontSize: '26px',
-    fontWeight: '700',
-    color: '#2d6a4f',
-    marginBottom: '8px',
-  },
-  subtitle: {
-    fontSize: '14px',
-    color: '#888',
-    marginBottom: '28px',
+  cardSubtitle: {
+    fontSize: '13px',
+    color: 'var(--text-secondary)',
+    marginBottom: '22px',
     lineHeight: '1.6',
-  },
-  error: {
-    backgroundColor: '#ffe5e5',
-    color: '#c0392b',
-    padding: '10px',
-    borderRadius: '8px',
-    marginBottom: '16px',
-    fontSize: '14px',
-  },
-  field: {
-    marginBottom: '16px',
-    textAlign: 'left',
-  },
-  label: {
-    display: 'block',
-    fontSize: '14px',
-    fontWeight: '600',
-    color: '#555',
-    marginBottom: '6px',
-  },
-  input: {
-    width: '100%',
-    padding: '10px 14px',
-    borderRadius: '8px',
-    border: '1px solid #ddd',
-    fontSize: '14px',
-    outline: 'none',
-    boxSizing: 'border-box',
-  },
-  button: {
-    width: '100%',
-    padding: '12px',
-    backgroundColor: '#2d6a4f',
-    color: '#fff',
-    border: 'none',
-    borderRadius: '8px',
-    fontSize: '16px',
-    fontWeight: '600',
-    cursor: 'pointer',
-    marginBottom: '20px',
+    textAlign: 'center',
   },
   link: {
-    fontSize: '14px',
-    color: '#666',
-  },
-  linkText: {
-    color: '#2d6a4f',
-    fontWeight: '600',
+    fontSize: '13px',
+    color: 'var(--primary)',
+    fontWeight: '500',
     textDecoration: 'none',
   },
 };
