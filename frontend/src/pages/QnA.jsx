@@ -20,6 +20,9 @@ const QnA = () => {
   const [answers, setAnswers]           = useState([]);
   const [newAnswer, setNewAnswer]       = useState('');
   const [submitting, setSubmitting]     = useState(false);
+  const [editingQuestion, setEditingQuestion] = useState(null);
+  const [editingAnswer, setEditingAnswer]     = useState(null);
+  const [editBody, setEditBody]               = useState('');
 
   const { user, logout } = useAuth();
   const navigate = useNavigate();
@@ -123,6 +126,52 @@ const QnA = () => {
     }
   };
 
+  const handleDeleteQuestion = async (questionId) => {
+  try {
+    await api.delete(`/qna/${questionId}`);
+    fetchQuestions();
+    if (expandedId === questionId) {
+      setExpandedId(null);
+      setAnswers([]);
+    }
+  } catch (err) {
+    setError('Failed to delete question');
+  }
+};
+
+const handleDeleteAnswer = async (answerId) => {
+  try {
+    await api.delete(`/qna/answers/${answerId}`);
+    const res = await api.get(`/qna/${expandedId}`);
+    setAnswers(res.data.answers);
+  } catch (err) {
+    setError('Failed to delete answer');
+  }
+};
+
+const handleEditQuestion = async (questionId) => {
+  try {
+    await api.patch(`/qna/${questionId}`, { body: editBody });
+    setEditingQuestion(null);
+    setEditBody('');
+    fetchQuestions();
+  } catch (err) {
+    setError('Failed to update question');
+  }
+};
+
+const handleEditAnswer = async (answerId) => {
+  try {
+    await api.patch(`/qna/answers/${answerId}`, { body: editBody });
+    setEditingAnswer(null);
+    setEditBody('');
+    const res = await api.get(`/qna/${expandedId}`);
+    setAnswers(res.data.answers);
+  } catch (err) {
+    setError('Failed to update answer');
+  }
+};
+
   return (
     <PageWrapper>
       <Navbar userName={user?.full_name} onLogout={handleLogout} />
@@ -206,36 +255,58 @@ const QnA = () => {
               </div>
 
               {/* Question body */}
-              <p style={styles.questionBody}>{q.body}</p>
+              {editingQuestion === q.id ? (
+                <div style={{ marginBottom: '14px' }}>
+                  <Textarea
+                    value={editBody}
+                    onChange={e => setEditBody(e.target.value)}
+                    style={{ minHeight: '80px', resize: 'none' }}
+                  />
+                  <div style={{ display: 'flex', gap: '8px', marginTop: '8px' }}>
+                    <Button variant="primary" size="sm" onClick={() => handleEditQuestion(q.id)}>
+                      Save
+                    </Button>
+                    <Button variant="ghost" size="sm" onClick={() => setEditingQuestion(null)}>
+                      Cancel
+                    </Button>
+                  </div>
+                </div>
+              ) : (
+                <p style={styles.questionBody}>{q.body}</p>
+              )}
 
               {/* Actions */}
               <div style={styles.questionFooter}>
-                <button
-                  style={styles.upvoteBtn}
-                  onClick={() => handleUpvote(q.id, 'question')}
-                >
+                <button style={styles.upvoteBtn} onClick={() => handleUpvote(q.id, 'question')}>
                   <svg width="14" height="14" viewBox="0 0 24 24" fill="none"
-                    stroke="currentColor" strokeWidth="2" strokeLinecap="round"
-                    strokeLinejoin="round">
+                    stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                     <path d="M12 19V5M5 12l7-7 7 7"/>
                   </svg>
                   {q.upvote_count}
                 </button>
 
-                <button
-                  style={styles.expandBtn}
-                  onClick={() => handleExpand(q.id)}
-                >
+                <button style={styles.expandBtn} onClick={() => handleExpand(q.id)}>
                   {expandedId === q.id ? 'Hide Answers' : 'View Answers'}
                 </button>
 
                 {q.author_id === user?.id && !q.is_resolved && (
-                  <button
-                    style={styles.resolveBtn}
-                    onClick={() => handleResolve(q.id)}
-                  >
+                  <button style={styles.resolveBtn} onClick={() => handleResolve(q.id)}>
                     Mark Resolved
                   </button>
+                )}
+
+                {q.author_id === user?.id && (
+                  <>
+                    <button
+                      style={styles.editBtn}
+                      onClick={() => { setEditingQuestion(q.id); setEditBody(q.body); }}
+                    >
+                      Edit
+                    </button>
+                    <button style={styles.deleteBtn} onClick={() => handleDeleteQuestion(q.id)}>
+                      Delete
+                    </button>
+                  </>
                 )}
               </div>
 
@@ -253,18 +324,53 @@ const QnA = () => {
                       {a.is_accepted && (
                         <div style={styles.acceptedBadge}>Accepted Answer</div>
                       )}
-                      <p style={styles.answerBody}>{a.body}</p>
-                      <button
-                        style={styles.upvoteBtnSm}
-                        onClick={() => handleUpvote(a.id, 'answer')}
-                      >
-                        <svg width="12" height="12" viewBox="0 0 24 24" fill="none"
-                          stroke="currentColor" strokeWidth="2" strokeLinecap="round"
-                          strokeLinejoin="round">
-                          <path d="M12 19V5M5 12l7-7 7 7"/>
-                        </svg>
-                        {a.upvote_count}
-                      </button>
+
+                      {editingAnswer === a.id ? (
+                        <div>
+                          <Textarea
+                            value={editBody}
+                            onChange={e => setEditBody(e.target.value)}
+                            style={{ minHeight: '72px', resize: 'none', marginBottom: '8px' }}
+                          />
+                          <div style={{ display: 'flex', gap: '8px' }}>
+                            <Button variant="primary" size="sm" onClick={() => handleEditAnswer(a.id)}>
+                              Save
+                            </Button>
+                            <Button variant="ghost" size="sm" onClick={() => setEditingAnswer(null)}>
+                              Cancel
+                            </Button>
+                          </div>
+                        </div>
+                      ) : (
+                        <>
+                          <p style={styles.answerBody}>{a.body}</p>
+                          <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
+                            <button style={styles.upvoteBtnSm} onClick={() => handleUpvote(a.id, 'answer')}>
+                              <svg width="12" height="12" viewBox="0 0 24 24" fill="none"
+                                stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                                <path d="M12 19V5M5 12l7-7 7 7"/>
+                              </svg>
+                              {a.upvote_count}
+                            </button>
+                            {a.author_id === user?.id && (
+                              <>
+                                <button
+                                  style={styles.editBtnSm}
+                                  onClick={() => { setEditingAnswer(a.id); setEditBody(a.body); }}
+                                >
+                                  Edit
+                                </button>
+                                <button
+                                  style={styles.deleteBtnSm}
+                                  onClick={() => handleDeleteAnswer(a.id)}
+                                >
+                                  Delete
+                                </button>
+                              </>
+                            )}
+                          </div>
+                        </>
+                      )}
                     </div>
                   ))}
 
@@ -274,7 +380,7 @@ const QnA = () => {
                       placeholder="Write an answer anonymously..."
                       value={newAnswer}
                       onChange={e => setNewAnswer(e.target.value)}
-                      style={{ minHeight: '72px', flex: 1 }}
+                      style={{ minHeight: '72px', flex: 1, resize: 'none' }}
                     />
                     <Button
                       variant="primary"
@@ -322,7 +428,7 @@ const QnA = () => {
                 placeholder="Ask your question clearly so others can help you..."
                 value={newQuestion.body}
                 onChange={e => setNewQuestion({ ...newQuestion, body: e.target.value })}
-                style={{ minHeight: '100px' }}
+                style={{ minHeight: '100px',flex:1,resize:'none' }}
                 required
               />
             </Field>
@@ -490,6 +596,38 @@ const styles = {
     alignItems: 'flex-start',
     marginTop: '4px',
   },
+  editBtn: {
+  display: 'inline-flex', alignItems: 'center',
+  height: '30px', padding: '0 10px',
+  background: 'transparent', border: '1px solid var(--border)',
+  borderRadius: 'var(--radius-sm)', fontSize: '12px',
+  fontWeight: '500', color: 'var(--primary)',
+  cursor: 'pointer', fontFamily: 'Inter, sans-serif',
+},
+deleteBtn: {
+  display: 'inline-flex', alignItems: 'center',
+  height: '30px', padding: '0 10px',
+  background: 'transparent', border: '1px solid var(--border)',
+  borderRadius: 'var(--radius-sm)', fontSize: '12px',
+  fontWeight: '500', color: 'var(--error)',
+  cursor: 'pointer', fontFamily: 'Inter, sans-serif',
+},
+editBtnSm: {
+  display: 'inline-flex', alignItems: 'center',
+  height: '26px', padding: '0 8px',
+  background: 'var(--surface)', border: '1px solid var(--border)',
+  borderRadius: 'var(--radius-sm)', fontSize: '11px',
+  color: 'var(--primary)', cursor: 'pointer',
+  fontFamily: 'Inter, sans-serif',
+},
+deleteBtnSm: {
+  display: 'inline-flex', alignItems: 'center',
+  height: '26px', padding: '0 8px',
+  background: 'var(--surface)', border: '1px solid var(--border)',
+  borderRadius: 'var(--radius-sm)', fontSize: '11px',
+  color: 'var(--error)', cursor: 'pointer',
+  fontFamily: 'Inter, sans-serif',
+},
 };
 
 export default QnA;

@@ -1,45 +1,49 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { useAuth } from '../context/AuthContext';
 import api from '../utils/api';
+import {
+  Navbar, PageWrapper, PageContent, PageHeader,
+  Button, Card, Badge, Field, Input, Select,
+  Alert, Modal, EmptyState, Tabs, Switch,
+} from '../components/UI';
 
 const Books = () => {
-  const [books, setBooks] = useState([]);
-  const [suggestions, setSuggestions] = useState([]);
-  const [filterCode, setFilterCode] = useState('');
-  const [filterType, setFilterType] = useState('');
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState('');
-  const [pin, setPin] = useState(null);
-  const [pinExpiry, setPinExpiry] = useState(null);
-  const [pinInfo, setPinInfo] = useState(null);
-  const [confirmData, setConfirmData] = useState({ request_id: '', pin: '' });
-  const [confirmMsg, setConfirmMsg] = useState('');
-  const [activeTab, setActiveTab] = useState('browse');
+  const [books, setBooks]               = useState([]);
+  const [suggestions, setSuggestions]   = useState([]);
+  const [loading, setLoading]           = useState(true);
+  const [error, setError]               = useState('');
+  const [filterCode, setFilterCode]     = useState('');
+  const [filterType, setFilterType]     = useState('');
+  const [activeTab, setActiveTab]       = useState('browse');
   const [showCreateForm, setShowCreateForm] = useState(false);
+  const [pin, setPin]                   = useState(null);
+  const [pinExpiry, setPinExpiry]       = useState(null);
+  const [pinInfo, setPinInfo]           = useState(null);
+  const [confirmData, setConfirmData]   = useState({ request_id: '', pin: '' });
+  const [confirmMsg, setConfirmMsg]     = useState('');
+  const [requestingBook, setRequestingBook] = useState(null);
+  const [borrowDays, setBorrowDays]     = useState('');
+
   const [createForm, setCreateForm] = useState({
-    title: '',
-    author: '',
-    course_code: '',
-    condition: 'good',
-    listing_type: 'gift',
-    price: '',
-    borrow_days_limit: '',
+    title: '', author: '', course_code: '', condition: 'good',
+    listing_type: 'gift', price: '', borrow_days_limit: '',
     women_only: false,
   });
-  const [borrowDays, setBorrowDays] = useState('');
+
+  const { user, logout } = useAuth();
   const navigate = useNavigate();
 
-  // Fetch course code suggestions
+  const handleLogout = async () => {
+    try { await api.post('/auth/logout'); } catch (_) {}
+    logout();
+    navigate('/login');
+  };
+
   useEffect(() => {
-    const fetchSuggestions = async () => {
-      try {
-        const res = await api.get('/books/distinct-courses');
-        setSuggestions(res.data);
-      } catch (err) {
-        // Non-critical
-      }
-    };
-    fetchSuggestions();
+    api.get('/books/distinct-courses')
+      .then(res => setSuggestions(res.data))
+      .catch(() => {});
   }, []);
 
   const fetchBooks = async () => {
@@ -58,29 +62,40 @@ const Books = () => {
     }
   };
 
-  useEffect(() => {
-    fetchBooks();
-    // eslint-disable-next-line
-  }, [filterType, filterCode]);
+  useEffect(() => { fetchBooks(); }, [filterType, filterCode]);
 
   const handleRequest = async (book) => {
+    setError('');
+    if (book.listing_type === 'borrow') {
+      setRequestingBook(book);
+      setBorrowDays('');
+      return;
+    }
     try {
-      const body = {};
-      if (book.listing_type === 'borrow') {
-        if (!borrowDays || borrowDays < 1 || borrowDays > 15) {
-          setError('Please enter borrow duration between 1 and 15 days');
-          return;
-        }
-        body.borrow_days = parseInt(borrowDays);
-      }
-      const res = await api.post(`/books/${book.id}/request`, body);
+      const res = await api.post(`/books/${book.id}/request`, {});
       setPin(res.data.pin);
       setPinExpiry(res.data.expires_at);
-      setPinInfo({
-        due_date: res.data.due_date,
-        total_price: res.data.total_price,
+      setPinInfo({ total_price: res.data.total_price });
+      fetchBooks();
+    } catch (err) {
+      setError(err.response?.data?.error || 'Failed to request book');
+    }
+  };
+
+  const handleBorrowRequest = async () => {
+    if (!borrowDays || borrowDays < 1 || borrowDays > 15) {
+      setError('Enter borrow duration between 1 and 15 days');
+      return;
+    }
+    try {
+      const res = await api.post(`/books/${requestingBook.id}/request`, {
+        borrow_days: parseInt(borrowDays),
       });
-      setError('');
+      setPin(res.data.pin);
+      setPinExpiry(res.data.expires_at);
+      setPinInfo({ due_date: res.data.due_date, total_price: res.data.total_price });
+      setRequestingBook(null);
+      setBorrowDays('');
       fetchBooks();
     } catch (err) {
       setError(err.response?.data?.error || 'Failed to request book');
@@ -90,7 +105,7 @@ const Books = () => {
   const handleConfirmPin = async () => {
     try {
       await api.post('/books/confirm-pin', confirmData);
-      setConfirmMsg('Exchange completed successfully');
+      setConfirmMsg('Exchange completed successfully.');
       setConfirmData({ request_id: '', pin: '' });
     } catch (err) {
       setConfirmMsg(err.response?.data?.error || 'PIN confirmation failed');
@@ -99,6 +114,7 @@ const Books = () => {
 
   const handleCreateListing = async (e) => {
     e.preventDefault();
+    setError('');
     try {
       await api.post('/books', {
         ...createForm,
@@ -118,672 +134,452 @@ const Books = () => {
     }
   };
 
+  const listingBadge = (b) => {
+    if (b.listing_type === 'gift')   return <Badge tone="green">Gift</Badge>;
+    if (b.listing_type === 'borrow') return <Badge tone="blue">Borrow · Rs. {b.price}/day</Badge>;
+    return <Badge tone="gold">Buy · Rs. {b.price}</Badge>;
+  };
+
   return (
-    <div style={styles.container}>
+    <PageWrapper>
+      <Navbar userName={user?.full_name} onLogout={handleLogout} />
 
-      {/* Header */}
-      <div style={styles.header}>
-        <button style={styles.backBtn} onClick={() => navigate('/home')}>
-          Back
-        </button>
-        <h1 style={styles.title}>Book Exchange</h1>
-        <button
-          style={styles.createBtn}
-          onClick={() => setShowCreateForm(!showCreateForm)}
-        >
-          {showCreateForm ? 'Cancel' : 'List a Book'}
-        </button>
-      </div>
+      <PageContent>
+        <PageHeader
+          title="Book Exchange"
+          onBack={() => navigate('/home')}
+          action={
+            <Button variant="accent" size="md" onClick={() => setShowCreateForm(true)}>
+              + List a Book
+            </Button>
+          }
+        />
 
-      {/* Create Listing Form */}
+        <Tabs
+          tabs={[
+            { label: 'Browse Listings', value: 'browse' },
+            { label: 'Confirm PIN',     value: 'confirm' },
+          ]}
+          active={activeTab}
+          onChange={setActiveTab}
+        />
+
+        {/* ── Browse Tab ─────────────────────────────── */}
+        {activeTab === 'browse' && (
+          <>
+            {/* Filters */}
+            <div style={styles.filterRow}>
+              <div style={{ flex: 1, position: 'relative' }}>
+                <Input
+                  placeholder="Filter by course code e.g. CS-301"
+                  value={filterCode}
+                  onChange={e => setFilterCode(e.target.value)}
+                  list="book-filter-suggestions"
+                  style={{ paddingLeft: '38px' }}
+                />
+                <svg style={styles.searchIcon} width="16" height="16" viewBox="0 0 24 24"
+                  fill="none" stroke="var(--text-muted)" strokeWidth="2"
+                  strokeLinecap="round" strokeLinejoin="round">
+                  <circle cx="11" cy="11" r="8"/>
+                  <line x1="21" y1="21" x2="16.65" y2="16.65"/>
+                </svg>
+                <datalist id="book-filter-suggestions">
+                  {suggestions.map(c => <option key={c} value={c} />)}
+                </datalist>
+              </div>
+
+              <Select
+                value={filterType}
+                onChange={e => setFilterType(e.target.value)}
+                style={{ width: '160px' }}
+              >
+                <option value="">All Types</option>
+                <option value="gift">Gift</option>
+                <option value="borrow">Borrow</option>
+                <option value="paid">Buy</option>
+              </Select>
+
+              {filterCode && (
+                <Button variant="ghost" size="md" onClick={() => setFilterCode('')}>
+                  Clear
+                </Button>
+              )}
+            </div>
+
+            {error && (
+              <Alert type="error" style={{ marginBottom: '16px' }}>{error}</Alert>
+            )}
+
+            {/* PIN display */}
+            {pin && (
+              <div style={styles.pinBox}>
+                <p style={styles.pinLabel}>
+                  Your PIN — show this to the seller at the campus drop point
+                </p>
+                <p style={styles.pinCode}>{pin}</p>
+                <p style={styles.pinMeta}>
+                  Expires at {new Date(pinExpiry).toLocaleTimeString()}
+                  {pinInfo?.due_date && ` · Return by ${new Date(pinInfo.due_date).toLocaleDateString()}`}
+                  {pinInfo?.total_price && ` · Total: ${pinInfo.total_price}`}
+                </p>
+              </div>
+            )}
+
+            {loading && (
+              <p style={{ color: 'var(--text-muted)', textAlign: 'center', padding: '48px 0' }}>
+                Loading listings...
+              </p>
+            )}
+
+            {!loading && books.length === 0 && (
+              <EmptyState
+                title="No listings available"
+                description="Check back later or list your own book"
+                action={
+                  <Button variant="primary" onClick={() => setShowCreateForm(true)}>
+                    List a Book
+                  </Button>
+                }
+              />
+            )}
+
+            <div style={styles.list}>
+              {books.map(b => (
+                <Card key={b.id} style={styles.bookCard}>
+                  <div style={styles.cardLeft}>
+                    <div style={styles.badgeRow}>
+                      {listingBadge(b)}
+                      <Badge tone="gray">{b.condition}</Badge>
+                      {b.women_only && <Badge tone="pink">Women Only</Badge>}
+                      {b.course_code && (
+                        <span style={styles.courseCode}>{b.course_code}</span>
+                      )}
+                    </div>
+                    <h3 style={styles.bookTitle}>{b.title}</h3>
+                    {b.author && (
+                      <p style={styles.bookAuthor}>by {b.author}</p>
+                    )}
+                    <p style={styles.bookMeta}>Seller: {b.seller_name}</p>
+                  </div>
+                  <Button
+                    variant="primary"
+                    size="sm"
+                    onClick={() => handleRequest(b)}
+                  >
+                    Request
+                  </Button>
+                </Card>
+              ))}
+            </div>
+          </>
+        )}
+
+        {/* ── Confirm PIN Tab ─────────────────────────── */}
+        {activeTab === 'confirm' && (
+          <Card style={{ maxWidth: '480px' }}>
+            <h2 style={styles.confirmTitle}>Confirm Book Exchange</h2>
+            <p style={styles.confirmSubtitle}>
+              Once the buyer pays you outside the app, enter their request ID
+              and PIN to confirm the exchange.
+            </p>
+
+            {confirmMsg && (
+              <Alert
+                type={confirmMsg.includes('success') ? 'success' : 'error'}
+                style={{ marginBottom: '16px' }}
+              >
+                {confirmMsg}
+              </Alert>
+            )}
+
+            <Field label="Request ID">
+              <Input
+                placeholder="Paste the request ID from buyer"
+                value={confirmData.request_id}
+                onChange={e => setConfirmData({ ...confirmData, request_id: e.target.value })}
+              />
+            </Field>
+
+            <Field label="PIN">
+              <input
+                type="text"
+                placeholder="4-digit PIN"
+                maxLength={4}
+                value={confirmData.pin}
+                onChange={e => setConfirmData({ ...confirmData, pin: e.target.value })}
+                style={styles.pinInput}
+                onFocus={e => e.target.style.borderColor = 'var(--primary)'}
+                onBlur={e => e.target.style.borderColor = 'var(--border)'}
+              />
+            </Field>
+
+            <Button variant="primary" fullWidth onClick={handleConfirmPin}>
+              Confirm Exchange
+            </Button>
+          </Card>
+        )}
+
+      </PageContent>
+
+      {/* ── Create Listing Modal ──────────────────────── */}
       {showCreateForm && (
-        <div style={styles.formBox}>
-          <h2 style={styles.formTitle}>List a Book</h2>
+        <Modal
+          title="List a Book"
+          onClose={() => setShowCreateForm(false)}
+          maxWidth="520px"
+        >
           <form onSubmit={handleCreateListing}>
 
-            <div style={styles.field}>
-              <label style={styles.label}>Book Title</label>
-              <input
-                style={styles.input}
-                type="text"
+            <Field label="Book Title">
+              <Input
                 placeholder="e.g. Introduction to Algorithms"
                 value={createForm.title}
-                onChange={(e) => setCreateForm({ ...createForm, title: e.target.value })}
+                onChange={e => setCreateForm({ ...createForm, title: e.target.value })}
                 required
               />
-            </div>
+            </Field>
 
-            <div style={styles.field}>
-              <label style={styles.label}>Author</label>
-              <input
-                style={styles.input}
-                type="text"
+            <Field label="Author">
+              <Input
                 placeholder="e.g. Thomas Cormen"
                 value={createForm.author}
-                onChange={(e) => setCreateForm({ ...createForm, author: e.target.value })}
+                onChange={e => setCreateForm({ ...createForm, author: e.target.value })}
               />
-            </div>
+            </Field>
 
-            <div style={styles.field}>
-              <label style={styles.label}>Course Code (optional)</label>
-              <input
-                style={styles.input}
-                type="text"
+            <Field label="Course Code (optional)">
+              <Input
                 placeholder="e.g. CS-301"
                 value={createForm.course_code}
-                onChange={(e) => setCreateForm({ ...createForm, course_code: e.target.value })}
-                list="book-course-suggestions"
+                onChange={e => setCreateForm({ ...createForm, course_code: e.target.value })}
+                list="create-book-suggestions"
               />
-              <datalist id="book-course-suggestions">
-                {suggestions.map(code => (
-                  <option key={code} value={code} />
-                ))}
+              <datalist id="create-book-suggestions">
+                {suggestions.map(c => <option key={c} value={c} />)}
               </datalist>
-            </div>
+            </Field>
 
-            <div style={styles.row}>
-              <div style={{ ...styles.field, flex: 1, marginRight: '10px' }}>
-                <label style={styles.label}>Condition</label>
-                <select
-                  style={styles.input}
+            <div style={{ display: 'flex', gap: '12px' }}>
+              <Field label="Condition" style={{ flex: 1 }}>
+                <Select
                   value={createForm.condition}
-                  onChange={(e) => setCreateForm({ ...createForm, condition: e.target.value })}
+                  onChange={e => setCreateForm({ ...createForm, condition: e.target.value })}
                 >
                   <option value="new">New</option>
                   <option value="good">Good</option>
                   <option value="fair">Fair</option>
                   <option value="poor">Poor</option>
-                </select>
-              </div>
+                </Select>
+              </Field>
 
-              <div style={{ ...styles.field, flex: 1 }}>
-                <label style={styles.label}>Listing Type</label>
-                <select
-                  style={styles.input}
+              <Field label="Listing Type" style={{ flex: 1 }}>
+                <Select
                   value={createForm.listing_type}
-                  onChange={(e) => setCreateForm({ ...createForm, listing_type: e.target.value })}
+                  onChange={e => setCreateForm({ ...createForm, listing_type: e.target.value })}
                 >
-                  <option value="gift">Gift-Free</option>
-                  <option value="borrow">Borrow-Per day</option>
-                  <option value="buy">Buy-Fixed price</option>
-                </select>
-              </div>
+                  <option value="gift">Gift — Free</option>
+                  <option value="borrow">Borrow — Per day</option>
+                  <option value="buy">Buy — Fixed price</option>
+                </Select>
+              </Field>
             </div>
 
             {createForm.listing_type !== 'gift' && (
-              <div style={styles.field}>
-                <label style={styles.label}>
-                  Price (PKR){createForm.listing_type === 'borrow' ? ' per day' : ''}
-                </label>
-                <input
-                  style={styles.input}
+              <Field
+                label={`Price (PKR)${createForm.listing_type === 'borrow' ? ' per day' : ''}`}
+              >
+                <Input
                   type="number"
                   placeholder={createForm.listing_type === 'borrow' ? 'e.g. 20' : 'e.g. 200'}
                   value={createForm.price}
-                  onChange={(e) => setCreateForm({ ...createForm, price: e.target.value })}
+                  onChange={e => setCreateForm({ ...createForm, price: e.target.value })}
                   min="1"
                   required
                 />
-              </div>
+              </Field>
             )}
 
             {createForm.listing_type === 'borrow' && (
-              <div style={styles.field}>
-                <label style={styles.label}>Max Borrow Duration (days)</label>
-                <input
-                  style={styles.input}
+              <Field label="Max Borrow Duration (days)">
+                <Input
                   type="number"
                   placeholder="Max 15 days"
                   value={createForm.borrow_days_limit}
-                  onChange={(e) => setCreateForm({ ...createForm, borrow_days_limit: e.target.value })}
+                  onChange={e => setCreateForm({ ...createForm, borrow_days_limit: e.target.value })}
                   min="1"
                   max="15"
                   required
                 />
-              </div>
+              </Field>
             )}
 
-            <div style={styles.field}>
-              <label style={styles.checkboxLabel}>
-                <input
-                  type="checkbox"
-                  checked={createForm.women_only}
-                  onChange={(e) => setCreateForm({ ...createForm, women_only: e.target.checked })}
-                  style={{ marginRight: '8px' }}
-                />
-                Restrict to female students only
-              </label>
+            <div style={{ marginBottom: '20px' }}>
+              <Switch
+                checked={createForm.women_only}
+                onChange={v => setCreateForm({ ...createForm, women_only: v })}
+                label="Restrict to female students only"
+              />
             </div>
 
-            <button type="submit" style={styles.submitBtn}>
+            <Button type="submit" variant="primary" fullWidth>
               Create Listing
-            </button>
+            </Button>
+
           </form>
-        </div>
+        </Modal>
       )}
 
-      {/* Tabs */}
-      <div style={styles.tabs}>
-        <button
-          style={activeTab === 'browse' ? styles.tabActive : styles.tab}
-          onClick={() => setActiveTab('browse')}
+      {/* ── Borrow Days Modal ────────────────────────── */}
+      {requestingBook && (
+        <Modal
+          title="How many days?"
+          onClose={() => setRequestingBook(null)}
+          maxWidth="400px"
         >
-          Browse Listings
-        </button>
-        <button
-          style={activeTab === 'confirm' ? styles.tabActive : styles.tab}
-          onClick={() => setActiveTab('confirm')}
-        >
-          Confirm PIN
-        </button>
-      </div>
-
-      {/* Browse Tab */}
-      {activeTab === 'browse' && (
-        <>
-          {/* Filters */}
-          <div style={styles.filters}>
-            <input
-              style={styles.filterInput}
-              type="text"
-              placeholder="Filter by course code e.g. CS-301"
-              value={filterCode}
-              onChange={(e) => setFilterCode(e.target.value)}
-              list="book-filter-suggestions"
-            />
-            <datalist id="book-filter-suggestions">
-              {suggestions.map(code => (
-                <option key={code} value={code} />
-              ))}
-            </datalist>
-
-            <select
-              style={styles.select}
-              value={filterType}
-              onChange={(e) => setFilterType(e.target.value)}
-            >
-              <option value="">All Types</option>
-              <option value="paid">Paid</option>
-              <option value="gift">Gift</option>
-              <option value="borrow">Borrow</option>
-            </select>
-
-            {filterCode && (
-              <button style={styles.clearBtn} onClick={() => setFilterCode('')}>
-                Clear
-              </button>
-            )}
-          </div>
-
-          {/* PIN Result */}
-          {pin && (
-            <div style={styles.pinBox}>
-              <p style={styles.pinLabel}>
-                Your PIN — show this to the seller at the campus drop point
-              </p>
-              <p style={styles.pinCode}>{pin}</p>
-              <p style={styles.pinExpiry}>
-                Expires at: {new Date(pinExpiry).toLocaleTimeString()}
-              </p>
-              {pinInfo?.due_date && (
-                <p style={styles.pinExpiry}>
-                  Return by: {new Date(pinInfo.due_date).toLocaleDateString()}
-                </p>
-              )}
-              {pinInfo?.total_price && (
-                <p style={styles.pinExpiry}>
-                  Total to pay: {pinInfo.total_price}
-                </p>
-              )}
-            </div>
-          )}
-
-          {/* Borrow days input */}
-          <div style={{ marginBottom: '16px' }}>
-            <input
-              style={{ ...styles.filterInput, maxWidth: '240px' }}
-              type="number"
-              placeholder="Borrow duration (days, max 15)"
-              value={borrowDays}
-              onChange={(e) => setBorrowDays(e.target.value)}
-              min="1"
-              max="15"
-            />
-            <p style={{ fontSize: '12px', color: '#aaa', marginTop: '4px' }}>
-              Only needed if requesting a Borrow listing
-            </p>
-          </div>
-
-          {error && <div style={styles.error}>{error}</div>}
-          {loading && <p style={styles.message}>Loading listings...</p>}
-
-          {!loading && books.length === 0 && (
-            <div style={styles.empty}>
-              <h3 style={styles.emptyTitle}>No listings available</h3>
-              <p style={styles.emptyText}>Check back later or list your own book</p>
-            </div>
-          )}
-
-          <div style={styles.list}>
-            {books.map(b => (
-              <div key={b.id} style={styles.card}>
-                <div style={styles.cardLeft}>
-                  <div style={styles.badgeRow}>
-                    <span style={{
-                      ...styles.badge,
-                      backgroundColor:
-                        b.listing_type === 'gift'   ? '#e8f5e9' :
-                        b.listing_type === 'borrow' ? '#e3f2fd' : '#fff8e1',
-                      color:
-                        b.listing_type === 'gift'   ? '#2d6a4f' :
-                        b.listing_type === 'borrow' ? '#1565c0' : '#f57f17',
-                    }}>
-                      {b.listing_type.charAt(0).toUpperCase() + b.listing_type.slice(1)}
-                    </span>
-                    <span style={styles.conditionBadge}>{b.condition}</span>
-                    {b.women_only && (
-                      <span style={styles.womenBadge}>Women Only</span>
-                    )}
-                  </div>
-
-                  <h3 style={styles.cardTitle}>{b.title}</h3>
-                  {b.author && (
-                    <p style={styles.cardAuthor}>by {b.author}</p>
-                  )}
-                  <p style={styles.cardMeta}>
-                    {b.course_code && `${b.course_code} · `}
-                    Seller: {b.seller_name}
-                    {b.listing_type !== 'gift' && ` · Rs. ${b.price}${b.listing_type === 'borrow' ? '/day' : ''}`}
-                  </p>
-                </div>
-
-                <button
-                  style={styles.requestBtn}
-                  onClick={() => handleRequest(b)}
-                >
-                  Request
-                </button>
-              </div>
-            ))}
-          </div>
-        </>
-      )}
-
-      {/* Confirm PIN Tab */}
-      {activeTab === 'confirm' && (
-        <div style={styles.confirmBox}>
-          <h2 style={styles.confirmTitle}>Confirm Book Exchange</h2>
-          <p style={styles.confirmSubtitle}>
-            Enter the request ID and PIN the buyer shows you to complete the exchange
+          <p style={{ fontSize: '13px', color: 'var(--text-secondary)', marginBottom: '16px' }}>
+            <strong>{requestingBook.title}</strong> · Rs. {requestingBook.price}/day
           </p>
 
-          {confirmMsg && (
-            <div style={
-              confirmMsg.includes('success') ? styles.success : styles.error
-            }>
-              {confirmMsg}
-            </div>
+          <Field
+            label="Borrow duration (1–15 days)"
+            hint={borrowDays && requestingBook.price
+              ? `Total: Rs. ${(requestingBook.price * borrowDays).toFixed(2)}`
+              : ''}
+          >
+            <Input
+              type="number"
+              min="1"
+              max="15"
+              placeholder="e.g. 3"
+              value={borrowDays}
+              onChange={e => setBorrowDays(e.target.value)}
+            />
+          </Field>
+
+          {error && (
+            <Alert type="error" style={{ marginBottom: '16px' }}>{error}</Alert>
           )}
 
-          <div style={styles.field}>
-            <label style={styles.label}>Request ID</label>
-            <input
-              style={styles.input}
-              type="text"
-              placeholder="Paste the request ID"
-              value={confirmData.request_id}
-              onChange={(e) => setConfirmData({ ...confirmData, request_id: e.target.value })}
-            />
-          </div>
-
-          <div style={styles.field}>
-            <label style={styles.label}>PIN</label>
-            <input
-              style={styles.pinInput}
-              type="text"
-              placeholder="4-digit PIN"
-              maxLength={4}
-              value={confirmData.pin}
-              onChange={(e) => setConfirmData({ ...confirmData, pin: e.target.value })}
-            />
-          </div>
-
-          <button style={styles.confirmBtn} onClick={handleConfirmPin}>
-            Confirm Exchange
-          </button>
-        </div>
+          <Button variant="primary" fullWidth onClick={handleBorrowRequest}>
+            Confirm Request
+          </Button>
+        </Modal>
       )}
 
-    </div>
+    </PageWrapper>
   );
 };
 
 const styles = {
-  container: {
-    minHeight: '100vh',
-    backgroundColor: '#f0f4f8',
-    padding: '24px',
-  },
-  header: {
+  filterRow: {
     display: 'flex',
-    alignItems: 'center',
-    gap: '16px',
-    marginBottom: '24px',
-  },
-  backBtn: {
-    padding: '8px 16px',
-    backgroundColor: '#fff',
-    border: '1px solid #ddd',
-    borderRadius: '8px',
-    fontSize: '14px',
-    cursor: 'pointer',
-    color: '#555',
-  },
-  title: {
-    fontSize: '24px',
-    fontWeight: '700',
-    color: '#2d6a4f',
-    flex: 1,
-  },
-  createBtn: {
-    padding: '10px 20px',
-    backgroundColor: '#2d6a4f',
-    color: '#fff',
-    border: 'none',
-    borderRadius: '8px',
-    fontSize: '14px',
-    fontWeight: '600',
-    cursor: 'pointer',
-  },
-  formBox: {
-    backgroundColor: '#fff',
-    padding: '24px',
-    borderRadius: '12px',
-    boxShadow: '0 2px 10px rgba(0,0,0,0.08)',
-    marginBottom: '24px',
-  },
-  formTitle: {
-    fontSize: '18px',
-    fontWeight: '700',
-    color: '#2d6a4f',
+    gap: '10px',
     marginBottom: '20px',
-  },
-  tabs: {
-    display: 'flex',
-    gap: '8px',
-    marginBottom: '24px',
-  },
-  tab: {
-    padding: '10px 20px',
-    backgroundColor: '#fff',
-    border: '1px solid #ddd',
-    borderRadius: '8px',
-    fontSize: '14px',
-    cursor: 'pointer',
-    color: '#555',
-    fontWeight: '500',
-  },
-  tabActive: {
-    padding: '10px 20px',
-    backgroundColor: '#2d6a4f',
-    border: '1px solid #2d6a4f',
-    borderRadius: '8px',
-    fontSize: '14px',
-    cursor: 'pointer',
-    color: '#fff',
-    fontWeight: '600',
-  },
-  filters: {
-    display: 'flex',
-    gap: '12px',
-    marginBottom: '16px',
-    flexWrap: 'wrap',
     alignItems: 'center',
+    flexWrap: 'wrap',
   },
-  filterInput: {
-    padding: '10px 14px',
-    borderRadius: '8px',
-    border: '1px solid #ddd',
-    fontSize: '14px',
-    outline: 'none',
-    flex: 1,
-    minWidth: '180px',
-  },
-  select: {
-    padding: '10px 14px',
-    borderRadius: '8px',
-    border: '1px solid #ddd',
-    fontSize: '14px',
-    backgroundColor: '#fff',
-    cursor: 'pointer',
-  },
-  clearBtn: {
-    padding: '10px 16px',
-    backgroundColor: '#fff',
-    border: '1px solid #ddd',
-    borderRadius: '8px',
-    fontSize: '14px',
-    cursor: 'pointer',
-    color: '#555',
+  searchIcon: {
+    position: 'absolute',
+    left: '12px',
+    top: '50%',
+    transform: 'translateY(-50%)',
+    pointerEvents: 'none',
   },
   pinBox: {
-    backgroundColor: '#2d6a4f',
-    color: '#fff',
-    padding: '24px',
-    borderRadius: '12px',
+    background: 'var(--primary)',
+    borderRadius: 'var(--radius-lg)',
+    padding: '20px 24px',
     textAlign: 'center',
-    marginBottom: '24px',
+    marginBottom: '20px',
   },
   pinLabel: {
-    fontSize: '14px',
+    fontSize: '12px',
+    color: 'rgba(255,255,255,0.75)',
     marginBottom: '8px',
-    opacity: 0.85,
   },
   pinCode: {
-    fontSize: '48px',
+    fontSize: '44px',
     fontWeight: '700',
-    letterSpacing: '12px',
-    marginBottom: '8px',
+    color: '#fff',
+    letterSpacing: '14px',
+    marginBottom: '6px',
+    fontFamily: 'Inter, sans-serif',
   },
-  pinExpiry: {
-    fontSize: '13px',
-    opacity: 0.75,
-    marginTop: '4px',
-  },
-  error: {
-    backgroundColor: '#ffe5e5',
-    color: '#c0392b',
-    padding: '10px',
-    borderRadius: '8px',
-    marginBottom: '16px',
-    fontSize: '14px',
-  },
-  success: {
-    backgroundColor: '#e8f5e9',
-    color: '#2d6a4f',
-    padding: '10px',
-    borderRadius: '8px',
-    marginBottom: '16px',
-    fontSize: '14px',
-  },
-  message: {
-    color: '#888',
-    textAlign: 'center',
-    padding: '40px',
-  },
-  empty: {
-    textAlign: 'center',
-    padding: '60px 20px',
-    backgroundColor: '#fff',
-    borderRadius: '12px',
-    boxShadow: '0 2px 10px rgba(0,0,0,0.08)',
-  },
-  emptyTitle: {
-    fontSize: '18px',
-    fontWeight: '600',
-    color: '#555',
-    marginBottom: '8px',
-  },
-  emptyText: {
-    fontSize: '14px',
-    color: '#aaa',
+  pinMeta: {
+    fontSize: '12px',
+    color: 'rgba(255,255,255,0.65)',
   },
   list: {
     display: 'flex',
     flexDirection: 'column',
-    gap: '16px',
+    gap: '10px',
   },
-  card: {
-    backgroundColor: '#fff',
-    padding: '20px 24px',
-    borderRadius: '12px',
-    boxShadow: '0 2px 10px rgba(0,0,0,0.08)',
+  bookCard: {
     display: 'flex',
     justifyContent: 'space-between',
     alignItems: 'center',
+    gap: '16px',
   },
   cardLeft: {
     flex: 1,
+    minWidth: 0,
   },
   badgeRow: {
     display: 'flex',
-    gap: '8px',
-    marginBottom: '8px',
+    gap: '6px',
     flexWrap: 'wrap',
+    alignItems: 'center',
+    marginBottom: '8px',
   },
-  badge: {
-    display: 'inline-block',
-    padding: '4px 10px',
-    borderRadius: '20px',
-    fontSize: '12px',
-    fontWeight: '600',
+  courseCode: {
+    fontSize: '11px',
+    color: 'var(--text-muted)',
+    fontWeight: '500',
   },
-  conditionBadge: {
-    display: 'inline-block',
-    padding: '4px 10px',
-    backgroundColor: '#f5f5f5',
-    color: '#888',
-    borderRadius: '20px',
-    fontSize: '12px',
-    fontWeight: '600',
-  },
-  womenBadge: {
-    display: 'inline-block',
-    padding: '4px 10px',
-    backgroundColor: '#fce4ec',
-    color: '#c2185b',
-    borderRadius: '20px',
-    fontSize: '12px',
-    fontWeight: '600',
-  },
-  cardTitle: {
-    fontSize: '16px',
-    fontWeight: '600',
-    color: '#333',
-    marginBottom: '4px',
-  },
-  cardAuthor: {
-    fontSize: '13px',
-    color: '#888',
-    marginBottom: '4px',
-  },
-  cardMeta: {
-    fontSize: '13px',
-    color: '#aaa',
-  },
-  requestBtn: {
-    padding: '8px 20px',
-    backgroundColor: '#2d6a4f',
-    color: '#fff',
-    border: 'none',
-    borderRadius: '8px',
+  bookTitle: {
     fontSize: '14px',
     fontWeight: '600',
-    cursor: 'pointer',
-    whiteSpace: 'nowrap',
+    color: 'var(--text-primary)',
+    marginBottom: '2px',
   },
-  confirmBox: {
-    backgroundColor: '#fff',
-    padding: '32px',
-    borderRadius: '12px',
-    boxShadow: '0 2px 10px rgba(0,0,0,0.08)',
-    maxWidth: '480px',
+  bookAuthor: {
+    fontSize: '12px',
+    color: 'var(--text-secondary)',
+    marginBottom: '4px',
+  },
+  bookMeta: {
+    fontSize: '12px',
+    color: 'var(--text-muted)',
   },
   confirmTitle: {
-    fontSize: '20px',
-    fontWeight: '700',
-    color: '#2d6a4f',
-    marginBottom: '8px',
-  },
-  confirmSubtitle: {
-    fontSize: '14px',
-    color: '#888',
-    marginBottom: '24px',
-    lineHeight: '1.5',
-  },
-  field: {
-    marginBottom: '16px',
-  },
-  row: {
-    display: 'flex',
-  },
-  label: {
-    display: 'block',
-    fontSize: '14px',
+    fontSize: '16px',
     fontWeight: '600',
-    color: '#555',
+    color: 'var(--text-primary)',
     marginBottom: '6px',
   },
-  checkboxLabel: {
-    display: 'flex',
-    alignItems: 'center',
-    fontSize: '14px',
-    color: '#555',
-    cursor: 'pointer',
-  },
-  input: {
-    width: '100%',
-    padding: '10px 14px',
-    borderRadius: '8px',
-    border: '1px solid #ddd',
-    fontSize: '14px',
-    outline: 'none',
-    boxSizing: 'border-box',
+  confirmSubtitle: {
+    fontSize: '13px',
+    color: 'var(--text-secondary)',
+    marginBottom: '20px',
+    lineHeight: '1.6',
   },
   pinInput: {
     width: '100%',
-    padding: '14px',
-    borderRadius: '8px',
-    border: '2px solid #2d6a4f',
+    height: '52px',
+    padding: '0 16px',
+    borderRadius: 'var(--radius-sm)',
+    border: '1px solid var(--border)',
+    background: 'var(--surface)',
+    color: 'var(--text-primary)',
     fontSize: '24px',
+    fontWeight: '600',
     textAlign: 'center',
     letterSpacing: '8px',
     outline: 'none',
     boxSizing: 'border-box',
-  },
-  submitBtn: {
-    width: '100%',
-    padding: '12px',
-    backgroundColor: '#2d6a4f',
-    color: '#fff',
-    border: 'none',
-    borderRadius: '8px',
-    fontSize: '16px',
-    fontWeight: '600',
-    cursor: 'pointer',
-    marginTop: '8px',
-  },
-  confirmBtn: {
-    width: '100%',
-    padding: '12px',
-    backgroundColor: '#2d6a4f',
-    color: '#fff',
-    border: 'none',
-    borderRadius: '8px',
-    fontSize: '16px',
-    fontWeight: '600',
-    cursor: 'pointer',
-    marginTop: '8px',
+    fontFamily: 'Inter, sans-serif',
+    transition: 'border-color 0.15s',
+    marginBottom: '4px',
   },
 };
 

@@ -16,7 +16,7 @@ router.get('/', authenticate, async (req, res) => {
 
     const result = await pool.query(
       `SELECT q.id, q.body, q.upvote_count, q.is_resolved,
-              q.created_at, q.course_code,
+              q.created_at, q.course_code,q.author_id,
               CASE WHEN q.is_anonymous THEN 'Anonymous'
                    ELSE u.full_name END as author_name
        FROM questions q
@@ -51,7 +51,7 @@ router.get('/:id', authenticate, async (req, res) => {
   try {
     const question = await pool.query(
       `SELECT q.id, q.body, q.upvote_count, q.is_resolved,
-              q.created_at, q.course_code,
+              q.created_at, q.course_code,q.author_id,
               CASE WHEN q.is_anonymous THEN 'Anonymous'
                    ELSE u.full_name END as author_name
        FROM questions q
@@ -64,6 +64,7 @@ router.get('/:id', authenticate, async (req, res) => {
 
     const answers = await pool.query(
       `SELECT a.id, a.body, a.upvote_count, a.is_accepted,
+              a.author_id,
               a.created_at,
               CASE WHEN a.is_anonymous THEN 'Anonymous'
                    ELSE u.full_name END as author_name
@@ -163,6 +164,95 @@ router.patch('/:id/resolve', authenticate, async (req, res) => {
     res.json({ message: 'Question marked as resolved' });
   } catch (err) {
     res.status(500).json({ error: 'Failed to resolve question' });
+  }
+});
+// PATCH /api/qna/:id — edit question
+router.patch('/:id', authenticate, async (req, res) => {
+  const { body } = req.body;
+  try {
+    const result = await pool.query(
+      'SELECT author_id FROM questions WHERE id = $1',
+      [req.params.id]
+    );
+    if (result.rows.length === 0)
+      return res.status(404).json({ error: 'Question not found' });
+    if (result.rows[0].author_id !== req.user.id)
+      return res.status(403).json({ error: 'You can only edit your own questions' });
+
+    await pool.query(
+      'UPDATE questions SET body = $1 WHERE id = $2',
+      [body, req.params.id]
+    );
+    res.json({ message: 'Question updated' });
+  } catch (err) {
+    res.status(500).json({ error: 'Failed to update question' });
+  }
+});
+
+// DELETE /api/qna/:id — delete question
+router.delete('/:id', authenticate, async (req, res) => {
+  try {
+    const result = await pool.query(
+      'SELECT author_id FROM questions WHERE id = $1',
+      [req.params.id]
+    );
+    if (result.rows.length === 0)
+      return res.status(404).json({ error: 'Question not found' });
+    if (result.rows[0].author_id !== req.user.id)
+      return res.status(403).json({ error: 'You can only delete your own questions' });
+
+    await pool.query(
+      'UPDATE questions SET is_active = FALSE WHERE id = $1',
+      [req.params.id]
+    );
+    res.json({ message: 'Question deleted' });
+  } catch (err) {
+    res.status(500).json({ error: 'Failed to delete question' });
+  }
+});
+
+// PATCH /api/qna/answers/:id — edit answer
+router.patch('/answers/:id', authenticate, async (req, res) => {
+  const { body } = req.body;
+  try {
+    const result = await pool.query(
+      'SELECT author_id FROM answers WHERE id = $1',
+      [req.params.id]
+    );
+    if (result.rows.length === 0)
+      return res.status(404).json({ error: 'Answer not found' });
+    if (result.rows[0].author_id !== req.user.id)
+      return res.status(403).json({ error: 'You can only edit your own answers' });
+
+    await pool.query(
+      'UPDATE answers SET body = $1 WHERE id = $2',
+      [body, req.params.id]
+    );
+    res.json({ message: 'Answer updated' });
+  } catch (err) {
+    res.status(500).json({ error: 'Failed to update answer' });
+  }
+});
+
+// DELETE /api/qna/answers/:id — delete answer
+router.delete('/answers/:id', authenticate, async (req, res) => {
+  try {
+    const result = await pool.query(
+      'SELECT author_id FROM answers WHERE id = $1',
+      [req.params.id]
+    );
+    if (result.rows.length === 0)
+      return res.status(404).json({ error: 'Answer not found' });
+    if (result.rows[0].author_id !== req.user.id)
+      return res.status(403).json({ error: 'You can only delete your own answers' });
+
+    await pool.query(
+      'UPDATE answers SET is_active = FALSE WHERE id = $1',
+      [req.params.id]
+    );
+    res.json({ message: 'Answer deleted' });
+  } catch (err) {
+    res.status(500).json({ error: 'Failed to delete answer' });
   }
 });
 

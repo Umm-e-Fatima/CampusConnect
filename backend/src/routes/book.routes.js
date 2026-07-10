@@ -80,15 +80,14 @@ router.post('/', authenticate, async (req, res) => {
     return res.status(400).json({ error: 'borrow_days_limit is required for borrow listings' });
 
   try {
-    const result = await pool.query(
+   const result = await pool.query(
       `INSERT INTO book_listings
-        (seller_id, university_id, title, author, course_code, condition,
-         listing_type, price, women_only)
-       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9)
-       RETURNING *`,
+        (seller_id, title, author, course_code, condition,
+        listing_type, price, women_only)
+      VALUES ($1,$2,$3,$4,$5,$6,$7,$8)
+      RETURNING *`,
       [
         req.user.id,
-        req.user.university_id,
         title,
         author,
         course_code ? course_code.trim().toUpperCase() : null,
