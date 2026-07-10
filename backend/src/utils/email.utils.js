@@ -29,10 +29,10 @@ const sendOTPEmail = async (toEmail, otpCode) => {
                   <td style="background:#1E3A8A;padding:28px 32px;">
                     <table cellpadding="0" cellspacing="0">
                       <tr>
-                        <td style="background:#f0a500;width:36px;height:36px;
-                                   border-radius:8px;text-align:center;
-                                   vertical-align:middle;padding:0 8px;">
-                          <span style="color:#0F172A;font-size:14px;font-weight:800;">CC</span>
+                        <td style="width:40px;height:40px;vertical-align:middle;">
+                          <img src="https://campusconnect.vercel.app/logo.png"
+                              alt="CC" width="40" height="40"
+                              style="display:block;object-fit:contain;" />
                         </td>
                         <td style="padding-left:10px;">
                           <span style="font-size:18px;font-weight:700;color:#ffffff;">
@@ -137,10 +137,10 @@ const sendPasswordResetEmail = async (toEmail, otpCode) => {
                   <td style="background:#1E3A8A;padding:28px 32px;">
                     <table cellpadding="0" cellspacing="0">
                       <tr>
-                        <td style="background:#f0a500;width:36px;height:36px;
-                                   border-radius:8px;text-align:center;
-                                   vertical-align:middle;padding:0 8px;">
-                          <span style="color:#0F172A;font-size:14px;font-weight:800;">CC</span>
+                        <td style="width:40px;height:40px;vertical-align:middle;">
+                          <img src="https://campusconnect.vercel.app/logo.png"
+                              alt="CC" width="40" height="40"
+                              style="display:block;object-fit:contain;" />
                         </td>
                         <td style="padding-left:10px;">
                           <span style="font-size:18px;font-weight:700;color:#ffffff;">

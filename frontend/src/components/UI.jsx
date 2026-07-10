@@ -194,20 +194,32 @@ export const Navbar = ({ userName, onLogout, showPWA = true }) => (
     boxShadow: 'var(--shadow-sm)',
   }}>
     <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-      <div style={{
-        width: '34px', height: '34px', background: 'var(--primary)',
-        borderRadius: '8px', display: 'flex', alignItems: 'center',
-        justifyContent: 'center', flexShrink: 0,
+      <svg width="34" height="34" viewBox="0 0 34 34">
+        <rect width="34" height="34" rx="8" fill="#1E3A8A" />
+        <text
+          x="5" y="26"
+          fontFamily="Georgia, serif"
+          fontWeight="700"
+          fontSize="22"
+          fill="#f0a500"
+        >C</text>
+        <text
+          x="14" y="28"
+          fontFamily="Georgia, serif"
+          fontWeight="700"
+          fontSize="18"
+          fill="white"
+          opacity="0.92"
+        >C</text>
+      </svg>
+      <span style={{
+        fontSize: '15px',
+        fontFamily: 'Plus Jakarta Sans, sans-serif',
+        fontWeight: '700',
+        letterSpacing: '-0.2px',
       }}>
-        <svg width="18" height="18" viewBox="0 0 24 24" fill="none"
-          stroke="#fff" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-          <path d="M22 10v6M2 10l10-5 10 5-10 5z"/>
-          <path d="M6 12v5c3 3 9 3 12 0v-5"/>
-        </svg>
-      </div>
-      <span style={{ fontSize: '15px', fontFamily: 'Plus Jakarta Sans, sans-serif', fontWeight: '700', letterSpacing: '-0.2px' }}>
-        <span style={{ color: 'var(--primary)' }}>Campus</span>
-        <span style={{ color: 'var(--accent)' }}>Connect</span>
+        <span style={{ color: '#1E3A8A' }}>Campus</span>
+        <span style={{ color: '#f0a500' }}>Connect</span>
       </span>
     </div>
 
@@ -349,23 +361,42 @@ export const StatCard = ({ value, label }) => (
 
 // ── Logo 
 export const Logo = ({ size = 'md' }) => {
-  const sizes = { sm: { icon: 32, text: 15 }, md: { icon: 42, text: 24 }, lg: { icon: 52, text: 28 } };
+  const sizes = {
+    sm: { box: 36, rx: 8,  font1: 24, font2: 19, x1: 8,  y1: 28, x2: 18, y2: 31 },
+    md: { box: 56, rx: 12, font1: 38, font2: 30, x1: 11, y1: 44, x2: 26, y2: 47 },
+    lg: { box: 68, rx: 14, font1: 46, font2: 37, x1: 14, y1: 54, x2: 32, y2: 57 },
+  };
   const s = sizes[size];
+  const textSize = { sm: 15, md: 22, lg: 26 }[size];
+
   return (
     <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '8px' }}>
-      <div style={{
-        width: s.icon, height: s.icon, background: 'var(--primary)',
-        borderRadius: '10px', display: 'flex', alignItems: 'center', justifyContent: 'center',
+      <svg width={s.box} height={s.box} viewBox={`0 0 ${s.box} ${s.box}`}>
+        <rect width={s.box} height={s.box} rx={s.rx} fill="#1E3A8A" />
+        <text
+          x={s.x1} y={s.y1}
+          fontFamily="Georgia, serif"
+          fontWeight="700"
+          fontSize={s.font1}
+          fill="#f0a500"
+        >C</text>
+        <text
+          x={s.x2} y={s.y2}
+          fontFamily="Georgia, serif"
+          fontWeight="700"
+          fontSize={s.font2}
+          fill="white"
+          opacity="0.92"
+        >C</text>
+      </svg>
+      <span style={{
+        fontSize: textSize,
+        fontFamily: 'Plus Jakarta Sans, sans-serif',
+        fontWeight: '800',
+        letterSpacing: '-0.5px',
       }}>
-        <svg width={s.icon * 0.5} height={s.icon * 0.5} viewBox="0 0 24 24" fill="none"
-          stroke="#fff" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-          <path d="M22 10v6M2 10l10-5 10 5-10 5z"/>
-          <path d="M6 12v5c3 3 9 3 12 0v-5"/>
-        </svg>
-      </div>
-      <span style={{ fontSize: s.text, fontFamily: 'Plus Jakarta Sans, sans-serif', fontWeight: '800', letterSpacing: '-0.5px' }}>
-        <span style={{ color: 'var(--primary)' }}>Campus</span>
-        <span style={{ color: 'var(--accent)' }}>Connect</span>
+        <span style={{ color: '#1E3A8A' }}>Campus</span>
+        <span style={{ color: '#f0a500' }}>Connect</span>
       </span>
     </div>
   );
