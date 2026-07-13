@@ -3,7 +3,7 @@ const pool = require('../config/db');
 const { authenticate } = require('../middleware/auth.middleware');
 const { generatePIN, getPINExpiry } = require('../utils/pin.utils');
 const { generateWatermarkedSignedURL } = require('../utils/cloudinary.utils');
-
+const { notifySeller } = require('../utils/push.utils');
 
 // POST /api/resource-requests/:resourceId
 // Buyer requests access to a paid resource
@@ -63,16 +63,35 @@ router.post('/:resourceId', authenticate, async (req, res) => {
       ]
     );
 
-    res.status(201).json({
-      message: `Request created. Pay Rs. ${totalPrice} to the seller then show them your PIN.`,
-      request_id: result.rows[0].id,
-      pin: pin_code,
-      pin_expires_at,
-      total_price: `Rs. ${totalPrice}`,
-      seller_instructions: r.listing_type === 'borrow'
-        ? `Borrow for ${borrow_days} days at Rs. ${r.price}/day`
-        : `One-time purchase at Rs. ${r.price}`,
-    });
+// Notify seller via push + email fallback
+const seller = await pool.query(
+  'SELECT id, email, full_name FROM users WHERE id = $1',
+  [r.uploaded_by]
+);
+
+if (seller.rows[0]) {
+  const sellerUser = seller.rows[0];
+  await notifySeller(
+    sellerUser.id,
+    {
+      title: 'New Resource Request',
+      body: `Someone wants to access your resource "${r.title}". Open CampusConnect to confirm payment.`,
+      url: '/resource-requests',
+    },
+    sellerUser.email
+  );
+}
+
+  res.status(201).json({
+    message: `Request created. Pay Rs. ${totalPrice} to the seller then show them your PIN.`,
+    request_id: result.rows[0].id,
+    pin: pin_code,
+    pin_expires_at,
+    total_price: `Rs. ${totalPrice}`,
+    seller_instructions: r.listing_type === 'borrow'
+      ? `Borrow for ${borrow_days} days at Rs. ${r.price}/day`
+      : `One-time purchase at Rs. ${r.price}`,
+  });
   } catch (err) {
     console.error(err);
     res.status(500).json({ error: 'Failed to create request' });

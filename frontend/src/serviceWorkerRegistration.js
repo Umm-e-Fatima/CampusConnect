@@ -76,6 +76,54 @@ function checkValidServiceWorker(swUrl) {
     });
 }
 
+export const subscribeToPush = async (token) => {
+  if (!('Notification' in window) || !('serviceWorker' in navigator)) {
+    console.log('Push not supported');
+    return;
+  }
+
+  try {
+    const permission = await Notification.requestPermission();
+    if (permission !== 'granted') {
+      console.log('Push permission denied');
+      return;
+    }
+
+    const registration = await navigator.serviceWorker.ready;
+    const subscription = await registration.pushManager.subscribe({
+      userVisibleOnly: true,
+      applicationServerKey: urlBase64ToUint8Array(
+        process.env.REACT_APP_VAPID_PUBLIC_KEY
+      ),
+    });
+
+    // Save subscription to backend
+    await fetch(`${process.env.REACT_APP_API_URL}/push/subscribe`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${token}`,
+      },
+      body: JSON.stringify({ subscription }),
+    });
+
+    console.log('Push subscription saved');
+  } catch (err) {
+    console.error('Push subscription failed:', err);
+  }
+};
+
+const urlBase64ToUint8Array = (base64String) => {
+  const padding = '='.repeat((4 - base64String.length % 4) % 4);
+  const base64  = (base64String + padding).replace(/-/g, '+').replace(/_/g, '/');
+  const rawData = window.atob(base64);
+  const output  = new Uint8Array(rawData.length);
+  for (let i = 0; i < rawData.length; i++) {
+    output[i] = rawData.charCodeAt(i);
+  }
+  return output;
+};
+
 export function unregister() {
   if ('serviceWorker' in navigator) {
     navigator.serviceWorker.ready

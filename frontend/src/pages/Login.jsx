@@ -3,6 +3,7 @@ import { useNavigate, Link } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import api from '../utils/api';
 import { Button, Field, Input, Alert, Logo } from '../components/UI';
+import { subscribeToPush } from '../serviceWorkerRegistration';
 
 const Login = () => {
   const [form, setForm] = useState({ email: '', password: '' });
@@ -22,6 +23,8 @@ const Login = () => {
     try {
       const res = await api.post('/auth/login', form);
       login(res.data.user, res.data.token);
+      // Register push notifications in background
+      subscribeToPush(res.data.token);
       navigate('/home');
     } catch (err) {
       setError(err.response?.data?.error || 'Login failed.Please try again.');

@@ -223,4 +223,87 @@ const sendPasswordResetEmail = async (toEmail, otpCode) => {
   await transporter.sendMail(mailOptions);
 };
 
-module.exports = { sendOTPEmail, sendPasswordResetEmail };
+const sendSellerNotificationEmail = async (toEmail, title, body) => {
+  const mailOptions = {
+    from: `"CampusConnect" <${process.env.EMAIL_USER}>`,
+    to: toEmail,
+    subject: title,
+    html: `
+      <!DOCTYPE html>
+      <html>
+      <body style="margin:0;padding:0;background:#F8FAFC;font-family:'Inter',Arial,sans-serif;">
+        <table width="100%" cellpadding="0" cellspacing="0" style="background:#F8FAFC;padding:40px 20px;">
+          <tr>
+            <td align="center">
+              <table width="100%" cellpadding="0" cellspacing="0"
+                style="max-width:480px;background:#ffffff;border-radius:12px;
+                       border:1px solid #E2E8F0;overflow:hidden;">
+
+                <!-- Header -->
+                <tr>
+                  <td style="background:#1E3A8A;padding:24px 32px;">
+                    <table cellpadding="0" cellspacing="0">
+                      <tr>
+                        <td style="background:#f0a500;width:36px;height:36px;
+                                   border-radius:8px;text-align:center;
+                                   vertical-align:middle;padding:0 8px;">
+                          <span style="color:#0F172A;font-size:14px;font-weight:800;">CC</span>
+                        </td>
+                        <td style="padding-left:10px;">
+                          <span style="font-size:18px;font-weight:700;color:#ffffff;">
+                            Campus<span style="color:#f0a500;">Connect</span>
+                          </span>
+                        </td>
+                      </tr>
+                    </table>
+                  </td>
+                </tr>
+
+                <!-- Body -->
+                <tr>
+                  <td style="padding:28px 32px;">
+                    <h2 style="font-size:18px;font-weight:700;color:#0F172A;margin:0 0 12px 0;">
+                      ${title}
+                    </h2>
+                    <p style="font-size:14px;color:#64748B;margin:0 0 24px 0;line-height:1.6;">
+                      ${body}
+                    </p>
+
+                    <!-- CTA -->
+                    <table cellpadding="0" cellspacing="0">
+                      <tr>
+                        <td style="background:#1E3A8A;border-radius:6px;padding:12px 24px;">
+                          <a href="${process.env.FRONTEND_URL}/resource-requests"
+                             style="color:#ffffff;font-size:14px;font-weight:600;
+                                    text-decoration:none;">
+                            View Request
+                          </a>
+                        </td>
+                      </tr>
+                    </table>
+                  </td>
+                </tr>
+
+                <!-- Footer -->
+                <tr>
+                  <td style="padding:20px 32px;border-top:1px solid #E2E8F0;background:#F8FAFC;">
+                    <p style="font-size:12px;color:#94A3B8;margin:0;text-align:center;line-height:1.6;">
+                      CampusConnect · Learn Together, Grow Together<br/>
+                      This is an automated notification. Please do not reply.
+                    </p>
+                  </td>
+                </tr>
+
+              </table>
+            </td>
+          </tr>
+        </table>
+      </body>
+      </html>
+    `,
+  };
+
+  await transporter.sendMail(mailOptions);
+};
+
+module.exports = { sendOTPEmail, sendPasswordResetEmail, sendSellerNotificationEmail };

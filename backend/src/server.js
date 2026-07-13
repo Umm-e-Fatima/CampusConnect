@@ -38,6 +38,26 @@ app.get('/api/stats', require('./middleware/auth.middleware').authenticate, asyn
     res.status(500).json({ error: 'Failed to fetch stats' });
   }
 });
+
+// ── Push Subscription 
+app.post('/api/push/subscribe', require('./middleware/auth.middleware').authenticate, async (req, res) => {
+  try {
+    const pool = require('./config/db');
+    const { subscription } = req.body;
+    if (!subscription) return res.status(400).json({ error: 'Subscription required' });
+
+    await pool.query(
+      `INSERT INTO push_subscriptions (user_id, subscription)
+       VALUES ($1, $2)
+       ON CONFLICT (user_id) DO UPDATE SET subscription = $2, updated_at = NOW()`,
+      [req.user.id, JSON.stringify(subscription)]
+    );
+    res.json({ message: 'Subscription saved' });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'Failed to save subscription' });
+  }
+});
 //  Health Check 
 app.get('/health', (req, res) => res.json({ status: 'ok', service: 'roshni-api' }));
 
