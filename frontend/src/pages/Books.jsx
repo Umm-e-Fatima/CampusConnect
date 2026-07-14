@@ -22,13 +22,15 @@ const Books = () => {
   const [pinInfo, setPinInfo]           = useState(null);
   const [confirmData, setConfirmData]   = useState({ request_id: '', pin: '' });
   const [confirmMsg, setConfirmMsg]     = useState('');
+  const [confirmResult, setConfirmResult] = useState(null);
   const [requestingBook, setRequestingBook] = useState(null);
   const [borrowDays, setBorrowDays]     = useState('');
+ 
 
   const [createForm, setCreateForm] = useState({
     title: '', author: '', course_code: '', condition: 'good',
     listing_type: 'gift', price: '', borrow_days_limit: '',
-    women_only: false,
+    women_only: false, dropoff_location: '', contact_info: '',
   });
 
   const { user, logout } = useAuth();
@@ -75,7 +77,10 @@ const Books = () => {
       const res = await api.post(`/books/${book.id}/request`, {});
       setPin(res.data.pin);
       setPinExpiry(res.data.expires_at);
-      setPinInfo({ total_price: res.data.total_price });
+      setPinInfo({
+        total_price: res.data.total_price,
+        dropoff_location: res.data.dropoff_location,
+      });
       fetchBooks();
     } catch (err) {
       setError(err.response?.data?.error || 'Failed to request book');
@@ -93,7 +98,11 @@ const Books = () => {
       });
       setPin(res.data.pin);
       setPinExpiry(res.data.expires_at);
-      setPinInfo({ due_date: res.data.due_date, total_price: res.data.total_price });
+      setPinInfo({
+        due_date: res.data.due_date,
+        total_price: res.data.total_price,
+        dropoff_location: res.data.dropoff_location,
+      });
       setRequestingBook(null);
       setBorrowDays('');
       fetchBooks();
@@ -104,11 +113,13 @@ const Books = () => {
 
   const handleConfirmPin = async () => {
     try {
-      await api.post('/books/confirm-pin', confirmData);
+      const res = await api.post('/books/confirm-pin', confirmData);
       setConfirmMsg('Exchange completed successfully.');
+      setConfirmResult(res.data);
       setConfirmData({ request_id: '', pin: '' });
     } catch (err) {
       setConfirmMsg(err.response?.data?.error || 'PIN confirmation failed');
+      setConfirmResult(null);
     }
   };
 
@@ -126,7 +137,8 @@ const Books = () => {
       setShowCreateForm(false);
       setCreateForm({
         title: '', author: '', course_code: '', condition: 'good',
-        listing_type: 'gift', price: '', borrow_days_limit: '', women_only: false,
+        listing_type: 'gift', price: '', borrow_days_limit: '',
+        women_only: false, dropoff_location: '', contact_info: '',
       });
       fetchBooks();
     } catch (err) {
@@ -214,7 +226,7 @@ const Books = () => {
             {pin && (
               <div style={styles.pinBox}>
                 <p style={styles.pinLabel}>
-                  Your PIN — show this to the seller at the campus drop point
+                  Your PIN — show this to the seller at the drop-off point
                 </p>
                 <p style={styles.pinCode}>{pin}</p>
                 <p style={styles.pinMeta}>
@@ -222,6 +234,17 @@ const Books = () => {
                   {pinInfo?.due_date && ` · Return by ${new Date(pinInfo.due_date).toLocaleDateString()}`}
                   {pinInfo?.total_price && ` · Total: ${pinInfo.total_price}`}
                 </p>
+                {pinInfo?.dropoff_location && (
+                  <div style={styles.dropoffBadge}>
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none"
+                      stroke="rgba(255,255,255,0.9)" strokeWidth="2"
+                      strokeLinecap="round" strokeLinejoin="round">
+                      <path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/>
+                      <circle cx="12" cy="10" r="3"/>
+                    </svg>
+                    Drop-off: {pinInfo.dropoff_location}
+                  </div>
+                )}
               </div>
             )}
 
@@ -260,6 +283,18 @@ const Books = () => {
                       <p style={styles.bookAuthor}>by {b.author}</p>
                     )}
                     <p style={styles.bookMeta}>Seller: {b.seller_name}</p>
+                    {b.dropoff_location && (
+                      <p style={styles.dropoffMeta}>
+                        <svg width="11" height="11" viewBox="0 0 24 24" fill="none"
+                          stroke="var(--text-muted)" strokeWidth="2"
+                          strokeLinecap="round" strokeLinejoin="round"
+                          style={{ display: 'inline', marginRight: '3px', verticalAlign: 'middle' }}>
+                          <path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/>
+                          <circle cx="12" cy="10" r="3"/>
+                        </svg>
+                        {b.dropoff_location}
+                      </p>
+                    )}
                   </div>
                   <Button
                     variant="primary"
@@ -290,6 +325,38 @@ const Books = () => {
               >
                 {confirmMsg}
               </Alert>
+            )}
+
+            {confirmResult && confirmMsg.includes('success') && (
+              <div style={styles.contactReveal}>
+                <p style={styles.contactRevealTitle}>Exchange confirmed</p>
+                {confirmResult.dropoff_location && (
+                  <div style={styles.contactRow}>
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none"
+                      stroke="var(--primary)" strokeWidth="2"
+                      strokeLinecap="round" strokeLinejoin="round">
+                      <path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/>
+                      <circle cx="12" cy="10" r="3"/>
+                    </svg>
+                    <span>Drop-off: <strong>{confirmResult.dropoff_location}</strong></span>
+                  </div>
+                )}
+                {confirmResult.contact_info && (
+                  <div style={styles.contactRow}>
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none"
+                      stroke="var(--primary)" strokeWidth="2"
+                      strokeLinecap="round" strokeLinejoin="round">
+                      <path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07A19.5 19.5 0 0 1 4.69 12 19.79 19.79 0 0 1 1.61 3.36 2 2 0 0 1 3.6 1h3a2 2 0 0 1 2 1.72c.127.96.361 1.903.7 2.81a2 2 0 0 1-.45 2.11L7.91 8.96a16 16 0 0 0 6.13 6.13l1.02-.95a2 2 0 0 1 2.11-.45c.907.339 1.85.573 2.81.7A2 2 0 0 1 22 16.92z"/>
+                    </svg>
+                    <span>Contact: <strong>{confirmResult.contact_info}</strong></span>
+                  </div>
+                )}
+                {!confirmResult.contact_info && !confirmResult.dropoff_location && (
+                  <p style={{ fontSize: '13px', color: 'var(--text-secondary)' }}>
+                    Seller did not add contact info. Coordinate at the campus drop-off point.
+                  </p>
+                )}
+              </div>
             )}
 
             <Field label="Request ID">
@@ -377,9 +444,9 @@ const Books = () => {
                   value={createForm.listing_type}
                   onChange={e => setCreateForm({ ...createForm, listing_type: e.target.value })}
                 >
-                  <option value="gift">Gift — Free</option>
-                  <option value="borrow">Borrow — Per day</option>
-                  <option value="buy">Buy — Fixed price</option>
+                  <option value="gift">Gift-Free</option>
+                  <option value="borrow">Borrow-Per day</option>
+                  <option value="paid">Buy-Fixed price</option>
                 </Select>
               </Field>
             </div>
@@ -413,6 +480,27 @@ const Books = () => {
               </Field>
             )}
 
+            <Field
+              label="Drop-off Location"
+              hint="Where should the buyer meet you? e.g. Library Gate 2, CS Block Lobby"
+            >
+              <Input
+                placeholder="e.g. Library Gate 2, CS Block Lobby"
+                value={createForm.dropoff_location}
+                onChange={e => setCreateForm({ ...createForm, dropoff_location: e.target.value })}
+              />
+            </Field>
+
+            <Field
+              label="Contact Info (shown to buyer only after exchange is confirmed)"
+              hint="WhatsApp number, phone number, or any preferred contact method"
+            >
+              <Input
+                placeholder="e.g. 03XX-XXXXXXX or WhatsApp: 03XX-XXXXXXX"
+                value={createForm.contact_info}
+                onChange={e => setCreateForm({ ...createForm, contact_info: e.target.value })}
+              />
+            </Field>
             <div style={{ marginBottom: '20px' }}>
               <Switch
                 checked={createForm.women_only}
@@ -581,6 +669,48 @@ const styles = {
     transition: 'border-color 0.15s',
     marginBottom: '4px',
   },
+  dropoffBadge: {
+  display: 'inline-flex',
+  alignItems: 'center',
+  gap: '5px',
+  marginTop: '10px',
+  padding: '5px 12px',
+  background: 'rgba(255,255,255,0.15)',
+  borderRadius: '20px',
+  fontSize: '12px',
+  color: '#fff',
+},
+dropoffMeta: {
+  fontSize: '11px',
+  color: 'var(--text-muted)',
+  marginTop: '3px',
+  display: 'flex',
+  alignItems: 'center',
+  gap: '3px',
+},
+contactReveal: {
+  background: 'var(--primary-light)',
+  border: '1px solid rgba(30,58,138,0.15)',
+  borderRadius: 'var(--radius-md)',
+  padding: '14px 16px',
+  marginBottom: '16px',
+  display: 'flex',
+  flexDirection: 'column',
+  gap: '8px',
+},
+contactRevealTitle: {
+  fontSize: '13px',
+  fontWeight: '600',
+  color: 'var(--primary)',
+  marginBottom: '2px',
+},
+contactRow: {
+  display: 'flex',
+  alignItems: 'center',
+  gap: '8px',
+  fontSize: '13px',
+  color: 'var(--text-primary)',
+},
 };
 
 export default Books;

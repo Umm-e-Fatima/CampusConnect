@@ -69,7 +69,7 @@ router.post('/', authenticate, async (req, res) => {
   const {
     title, author, course_code, condition,
     listing_type, price, women_only,
-    borrow_days_limit,
+    borrow_days_limit, dropoff_location, contact_info,
   } = req.body;
 
   if (!title || !listing_type)
@@ -80,23 +80,25 @@ router.post('/', authenticate, async (req, res) => {
     return res.status(400).json({ error: 'borrow_days_limit is required for borrow listings' });
 
   try {
-   const result = await pool.query(
-      `INSERT INTO book_listings
-        (seller_id, title, author, course_code, condition,
-        listing_type, price, women_only)
-      VALUES ($1,$2,$3,$4,$5,$6,$7,$8)
-      RETURNING *`,
-      [
-        req.user.id,
-        title,
-        author,
-        course_code ? course_code.trim().toUpperCase() : null,
-        condition,
-        listing_type,
-        price || null,
-        women_only || false,
-      ]
-    );
+    const result = await pool.query(
+    `INSERT INTO book_listings
+      (seller_id, title, author, course_code, condition,
+      listing_type, price, women_only, dropoff_location, contact_info)
+    VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10)
+    RETURNING *`,
+    [
+      req.user.id,
+      title,
+      author,
+      course_code ? course_code.trim().toUpperCase() : null,
+      condition,
+      listing_type,
+      price || null,
+      women_only || false,
+      dropoff_location || null,
+      contact_info || null,
+    ]
+  );
     res.status(201).json(result.rows[0]);
   } catch (err) {
     console.error(err);
@@ -138,7 +140,22 @@ router.post('/confirm-pin', authenticate, async (req, res) => {
       [bookRequest.listing_id]
     );
 
-    res.json({ message: 'Exchange completed successfully' });
+    // Fetch seller contact info to share with buyer after confirmation
+    const listingResult = await pool.query(
+      `SELECT b.contact_info, b.dropoff_location, u.full_name as seller_name
+      FROM book_listings b
+      JOIN users u ON b.seller_id = u.id
+      WHERE b.id = $1`,
+      [bookRequest.listing_id]
+    );
+    const listing = listingResult.rows[0];
+
+    res.json({
+      message: 'Exchange completed successfully',
+      seller_name: listing?.seller_name || null,
+      contact_info: listing?.contact_info || null,
+      dropoff_location: listing?.dropoff_location || null,
+    });
   } catch (err) {
     res.status(500).json({ error: 'PIN confirmation failed' });
   }
@@ -199,6 +216,7 @@ router.post('/:id/request', authenticate, async (req, res) => {
       message: 'PIN generated. Show this to the seller at the campus drop point.',
       pin: pin_code,
       expires_at: pin_expires_at,
+      dropoff_location: listing.rows[0].dropoff_location || null,
       ...(borrow_due_date && { due_date: borrow_due_date }),
       ...(totalPrice && { total_price: `Rs. ${totalPrice}` }),
     });
