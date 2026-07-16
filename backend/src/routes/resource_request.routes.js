@@ -88,6 +88,7 @@ if (seller.rows[0]) {
     pin: pin_code,
     pin_expires_at,
     total_price: `Rs. ${totalPrice}`,
+    payment_info: r.payment_info || null,
     seller_instructions: r.listing_type === 'borrow'
       ? `Borrow for ${borrow_days} days at Rs. ${r.price}/day`
       : `One-time purchase at Rs. ${r.price}`,
@@ -138,6 +139,7 @@ router.get('/buyer/my-requests', authenticate, async (req, res) => {
               r.course_code,
               r.listing_type,
               r.price,
+              r.payment_info,
               u.full_name as seller_name
        FROM resource_requests rr
        JOIN resources r ON rr.resource_id = r.id

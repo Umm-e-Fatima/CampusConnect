@@ -18,7 +18,7 @@ const register = async (req, res) => {
   if (exists.rows.length > 0)
     return res.status(409).json({ error: 'Email already registered' });
 
-  // Accept any .edu.pk email  keeps Roshni open to all Pakistani universities
+  // Accept any .edu.pk email  keeps CampusConnect open to all Pakistani universities
   const emailDomain = email.split('@')[1];
   if (!emailDomain || !emailDomain.endsWith('.edu.pk'))
     return res.status(400).json({ error: 'Please use a valid .edu.pk university email address' });
@@ -85,6 +85,49 @@ const verifyOTP = async (req, res) => {
   } catch (err) {
     console.error(err);
     res.status(500).json({ error: 'Verification failed' });
+  }
+};
+
+//  RESEND OTP 
+const resendOTP = async (req, res) => {
+  const { email } = req.body;
+
+  if (!email)
+    return res.status(400).json({ error: 'email is required' });
+
+  try {
+    const result = await pool.query(
+      'SELECT id, is_email_verified FROM users WHERE email = $1',
+      [email]
+    );
+    const user = result.rows[0];
+
+    if (!user)
+      return res.status(404).json({ error: 'User not found' });
+    if (user.is_email_verified)
+      return res.status(400).json({ error: 'Email is already verified. Please log in.' });
+
+    const otp_code = generateOTP();
+    const otp_expires_at = new Date(Date.now() + parseInt(process.env.OTP_EXPIRES_MINUTES || 10) * 60000);
+
+    await pool.query(
+      'UPDATE users SET otp_code = $1, otp_expires_at = $2 WHERE id = $3',
+      [otp_code, otp_expires_at, user.id]
+    );
+
+    console.log(`>>> RESENT OTP for ${email}: ${otp_code}`);
+
+    try {
+      await sendOTPEmail(email, otp_code);
+    } catch (emailErr) {
+      console.error('Failed to send resend OTP email:', emailErr.message);
+      console.log(`>>> FALLBACK RESENT OTP for ${email}: ${otp_code}`);
+    }
+
+    res.json({ message: 'A new OTP has been sent to your email.' });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'Failed to resend OTP' });
   }
 };
 
@@ -240,4 +283,4 @@ const resetPassword = async (req, res) => {
   }
 };
 
-module.exports = { register, verifyOTP, login, logout, forgotPassword, resetPassword };
+module.exports = { register, verifyOTP, resendOTP, login, logout, forgotPassword, resetPassword };

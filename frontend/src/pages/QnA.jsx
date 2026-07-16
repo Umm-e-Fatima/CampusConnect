@@ -2,27 +2,23 @@ import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import api from '../utils/api';
-import {
-  Navbar, PageWrapper, PageContent, PageHeader,
-  Button, Card, Badge, Field, Input, Textarea,
-  Alert, Modal, EmptyState,
-} from '../components/UI';
 
 const QnA = () => {
-  const [questions, setQuestions]       = useState([]);
-  const [suggestions, setSuggestions]   = useState([]);
-  const [filterCode, setFilterCode]     = useState('');
-  const [loading, setLoading]           = useState(true);
-  const [error, setError]               = useState('');
-  const [showAskForm, setShowAskForm]   = useState(false);
-  const [newQuestion, setNewQuestion]   = useState({ course_code: '', body: '' });
-  const [expandedId, setExpandedId]     = useState(null);
-  const [answers, setAnswers]           = useState([]);
-  const [newAnswer, setNewAnswer]       = useState('');
-  const [submitting, setSubmitting]     = useState(false);
+  const [questions, setQuestions]     = useState([]);
+  const [suggestions, setSuggestions] = useState([]);
+  const [filterCode, setFilterCode]   = useState('');
+  const [loading, setLoading]         = useState(true);
+  const [error, setError]             = useState('');
+  const [showAskForm, setShowAskForm] = useState(false);
+  const [newQuestion, setNewQuestion] = useState({ course_code: '', body: '' });
+  const [viewingQuestion, setViewingQuestion] = useState(null);
+  const [answers, setAnswers]         = useState([]);
+  const [newAnswer, setNewAnswer]     = useState('');
+  const [submitting, setSubmitting]   = useState(false);
   const [editingQuestion, setEditingQuestion] = useState(null);
   const [editingAnswer, setEditingAnswer]     = useState(null);
-  const [editBody, setEditBody]               = useState('');
+  const [editBody, setEditBody]       = useState('');
+  const [isOnline, setIsOnline]       = useState(navigator.onLine);
 
   const { user, logout } = useAuth();
   const navigate = useNavigate();
@@ -32,6 +28,17 @@ const QnA = () => {
     logout();
     navigate('/login');
   };
+
+  useEffect(() => {
+    const handleOnline = () => setIsOnline(true);
+    const handleOffline = () => setIsOnline(false);
+    window.addEventListener('online', handleOnline);
+    window.addEventListener('offline', handleOffline);
+    return () => {
+      window.removeEventListener('online', handleOnline);
+      window.removeEventListener('offline', handleOffline);
+    };
+  }, []);
 
   useEffect(() => {
     api.get('/qna/distinct-courses')
@@ -54,7 +61,7 @@ const QnA = () => {
     }
   };
 
-  useEffect(() => { fetchQuestions(); }, [filterCode]);
+  useEffect(() => { fetchQuestions(); }, [filterCode]); // eslint-disable-line
 
   const handlePostQuestion = async (e) => {
     e.preventDefault();
@@ -78,29 +85,35 @@ const QnA = () => {
     }
   };
 
-  const handleExpand = async (questionId) => {
-    if (expandedId === questionId) {
-      setExpandedId(null);
-      setAnswers([]);
-      return;
-    }
+  const openAnswers = async (question) => {
     try {
-      const res = await api.get(`/qna/${questionId}`);
+      const res = await api.get(`/qna/${question.id}`);
       setAnswers(res.data.answers);
-      setExpandedId(questionId);
+      setViewingQuestion(question);
       setNewAnswer('');
     } catch (err) {
       setError('Failed to fetch answers');
     }
   };
 
-  const handlePostAnswer = async (questionId) => {
-    if (!newAnswer.trim()) return;
+  const closeAnswers = () => {
+    setViewingQuestion(null);
+    setAnswers([]);
+    setEditingAnswer(null);
+  };
+
+  const refreshAnswers = async () => {
+    if (!viewingQuestion) return;
+    const res = await api.get(`/qna/${viewingQuestion.id}`);
+    setAnswers(res.data.answers);
+  };
+
+  const handlePostAnswer = async () => {
+    if (!newAnswer.trim() || !viewingQuestion) return;
     try {
-      await api.post(`/qna/${questionId}/answers`, { body: newAnswer });
+      await api.post(`/qna/${viewingQuestion.id}/answers`, { body: newAnswer });
       setNewAnswer('');
-      const res = await api.get(`/qna/${questionId}`);
-      setAnswers(res.data.answers);
+      refreshAnswers();
     } catch (err) {
       setError('Failed to post answer');
     }
@@ -110,10 +123,7 @@ const QnA = () => {
     try {
       await api.post(`/qna/${id}/upvote`, { target_type });
       fetchQuestions();
-      if (expandedId) {
-        const res = await api.get(`/qna/${expandedId}`);
-        setAnswers(res.data.answers);
-      }
+      if (viewingQuestion) refreshAnswers();
     } catch (_) {}
   };
 
@@ -121,513 +131,356 @@ const QnA = () => {
     try {
       await api.patch(`/qna/${questionId}/resolve`);
       fetchQuestions();
+      if (viewingQuestion?.id === questionId) {
+        setViewingQuestion({ ...viewingQuestion, is_resolved: true });
+      }
     } catch (err) {
       setError('Failed to mark as resolved');
     }
   };
 
   const handleDeleteQuestion = async (questionId) => {
-  try {
-    await api.delete(`/qna/${questionId}`);
-    fetchQuestions();
-    if (expandedId === questionId) {
-      setExpandedId(null);
-      setAnswers([]);
+    try {
+      await api.delete(`/qna/${questionId}`);
+      fetchQuestions();
+      if (viewingQuestion?.id === questionId) closeAnswers();
+    } catch (err) {
+      setError('Failed to delete question');
     }
-  } catch (err) {
-    setError('Failed to delete question');
-  }
-};
+  };
 
-const handleDeleteAnswer = async (answerId) => {
-  try {
-    await api.delete(`/qna/answers/${answerId}`);
-    const res = await api.get(`/qna/${expandedId}`);
-    setAnswers(res.data.answers);
-  } catch (err) {
-    setError('Failed to delete answer');
-  }
-};
+  const handleDeleteAnswer = async (answerId) => {
+    try {
+      await api.delete(`/qna/answers/${answerId}`);
+      refreshAnswers();
+    } catch (err) {
+      setError('Failed to delete answer');
+    }
+  };
 
-const handleEditQuestion = async (questionId) => {
-  try {
-    await api.patch(`/qna/${questionId}`, { body: editBody });
-    setEditingQuestion(null);
-    setEditBody('');
-    fetchQuestions();
-  } catch (err) {
-    setError('Failed to update question');
-  }
-};
+  const handleEditQuestion = async (questionId) => {
+    try {
+      await api.patch(`/qna/${questionId}`, { body: editBody });
+      setEditingQuestion(null);
+      setEditBody('');
+      fetchQuestions();
+      if (viewingQuestion?.id === questionId) {
+        setViewingQuestion({ ...viewingQuestion, body: editBody });
+      }
+    } catch (err) {
+      setError('Failed to update question');
+    }
+  };
 
-const handleEditAnswer = async (answerId) => {
-  try {
-    await api.patch(`/qna/answers/${answerId}`, { body: editBody });
-    setEditingAnswer(null);
-    setEditBody('');
-    const res = await api.get(`/qna/${expandedId}`);
-    setAnswers(res.data.answers);
-  } catch (err) {
-    setError('Failed to update answer');
-  }
-};
+  const handleEditAnswer = async (answerId) => {
+    try {
+      await api.patch(`/qna/answers/${answerId}`, { body: editBody });
+      setEditingAnswer(null);
+      setEditBody('');
+      refreshAnswers();
+    } catch (err) {
+      setError('Failed to update answer');
+    }
+  };
 
   return (
-    <PageWrapper>
-      <Navbar userName={user?.full_name} onLogout={handleLogout} />
+    <>
+      <style>{`
+        @import url('https://fonts.googleapis.com/css2?family=Poppins:wght@500;600;700;800&family=Nunito:wght@400;600;700&display=swap');
+        :root {
+          --cream: #FBF3E5; --card: #FFFDF8; --line: #E9DCC3;
+          --teal: #1D6F68; --teal-d: #134F4A; --orange: #E2903C; --orange-d: #C97324;
+          --ink: #3A3630; --inks: #8A8172; --danger: #C15C4A; --ok: #4C8A63; --rose-d: #96475D;
+        }
+        * { box-sizing: border-box; }
+        .qa-page { margin: 0; background: var(--cream); color: var(--ink); font-family: 'Nunito', sans-serif; min-height: 100vh; }
+        .qa-wrap { max-width: 1040px; margin: 0 auto; padding: 0 32px 64px; }
+        .qa-nav { display: flex; align-items: center; justify-content: space-between; padding: 22px 0; margin-bottom: 26px; }
+        .qa-brand { display: flex; align-items: center; gap: 10px; }
+        .qa-brand-mark { width: 36px; height: 36px; border-radius: 11px; background: var(--teal); color: #fff; display: flex; align-items: center; justify-content: center; font-family: 'Poppins', sans-serif; font-weight: 700; font-size: 14px; }
+        .qa-brand-name { font-family: 'Poppins', sans-serif; font-weight: 700; font-size: 17px; color: var(--teal-d); }
+        .qa-nav-right { display: flex; align-items: center; gap: 16px; }
+        .qa-status { display: flex; align-items: center; gap: 6px; font-family: 'Poppins', sans-serif; font-size: 11px; font-weight: 600; color: var(--teal-d); background: #E7F0EA; padding: 6px 12px; border-radius: 20px; }
+        .qa-status.offline { color: var(--rose-d); background: #F5E6EA; }
+        .qa-status-dot { width: 6px; height: 6px; background: var(--teal); border-radius: 50%; }
+        .qa-status.offline .qa-status-dot { background: var(--danger); }
+        .qa-user-name { font-size: 13px; color: var(--inks); }
+        .qa-logout-btn { font-family: 'Poppins', sans-serif; font-size: 12.5px; font-weight: 600; background: none; border: 1px solid var(--line); color: var(--ink); padding: 8px 16px; border-radius: 999px; cursor: pointer; transition: background 0.15s; }
+        .qa-logout-btn:hover { background: var(--card); }
 
-      <PageContent>
-        <PageHeader
-          title="Anonymous Q&A"
-          onBack={() => navigate('/home')}
-          action={
-            <Button
-              variant="accent"
-              size="md"
-              onClick={() => setShowAskForm(true)}
-            >
-              Ask a Question
-            </Button>
-          }
-        />
+        .qa-page-head { display: flex; align-items: center; justify-content: space-between; margin-bottom: 20px; flex-wrap: wrap; gap: 12px; }
+        .qa-page-head-left { display: flex; align-items: center; gap: 14px; }
+        .qa-back-btn { font-family: 'Poppins', sans-serif; font-size: 12.5px; font-weight: 600; color: var(--inks); background: none; border: 1px solid var(--line); padding: 8px 14px; border-radius: 999px; cursor: pointer; transition: background 0.15s; }
+        .qa-back-btn:hover { background: var(--card); }
+        .qa-h1 { font-family: 'Poppins', sans-serif; font-weight: 700; font-size: 22px; color: var(--teal-d); margin: 0; }
+        .qa-btn-primary { background: var(--orange); color: #fff; font-family: 'Poppins', sans-serif; font-weight: 600; font-size: 13px; padding: 11px 20px; border-radius: 999px; border: none; cursor: pointer; box-shadow: 0 6px 14px rgba(226,144,60,.3); transition: background 0.15s; }
+        .qa-btn-primary:hover { background: var(--orange-d); }
+        .qa-btn-primary:disabled { opacity: 0.7; cursor: not-allowed; }
 
-        {/* Filter */}
-        <div style={styles.filterRow}>
-          <div style={{ flex: 1, position: 'relative' }}>
-            <Input
-              placeholder="Filter by course code e.g. CS-301"
-              value={filterCode}
-              onChange={e => setFilterCode(e.target.value)}
-              list="qna-filter-suggestions"
-              style={{ paddingLeft: '38px' }}
-            />
-            <svg style={styles.searchIcon} width="16" height="16" viewBox="0 0 24 24"
-              fill="none" stroke="var(--text-muted)" strokeWidth="2"
-              strokeLinecap="round" strokeLinejoin="round">
-              <circle cx="11" cy="11" r="8"/>
-              <line x1="21" y1="21" x2="16.65" y2="16.65"/>
-            </svg>
-            <datalist id="qna-filter-suggestions">
-              {suggestions.map(c => <option key={c} value={c} />)}
-            </datalist>
-          </div>
-          {filterCode && (
-            <Button variant="ghost" size="md" onClick={() => setFilterCode('')}>
-              Clear
-            </Button>
-          )}
-        </div>
+        .qa-filter-row { margin-bottom: 20px; display: flex; gap: 10px; }
+        .qa-filter-row input { width: 100%; background: var(--card); border: 1px solid var(--line); border-radius: 14px; padding: 11px 16px; color: var(--ink); font-size: 13px; font-family: 'Nunito', sans-serif; }
+        .qa-filter-row input:focus { outline: none; border-color: var(--teal); }
+        .qa-clear-btn { font-family: 'Poppins', sans-serif; font-size: 12.5px; font-weight: 600; color: var(--inks); background: none; border: 1px solid var(--line); padding: 11px 16px; border-radius: 14px; cursor: pointer; flex-shrink: 0; }
 
-        {error && <Alert type="error" style={{ marginBottom: '16px' }}>{error}</Alert>}
+        .qa-error { background: #F5E6EA; color: var(--rose-d); border: 1px solid rgba(150,71,93,0.2); border-radius: 10px; padding: 10px 14px; font-size: 12.5px; margin-bottom: 16px; }
 
-        {loading && (
-          <p style={{ color: 'var(--text-muted)', textAlign: 'center', padding: '48px 0' }}>
-            Loading questions...
-          </p>
-        )}
+        .qa-empty { text-align: center; padding: 48px 24px; color: var(--inks); }
+        .qa-empty h3 { font-family: 'Poppins', sans-serif; color: var(--teal-d); font-size: 15px; margin-bottom: 6px; }
+        .qa-empty p { font-size: 13px; margin-bottom: 16px; }
 
-        {!loading && questions.length === 0 && (
-          <EmptyState
-            title="No questions yet"
-            description="Be the first to ask a question for this course"
-            action={
-              <Button variant="primary" onClick={() => setShowAskForm(true)}>
-                Ask a Question
-              </Button>
-            }
-          />
-        )}
+        .qa-q-item { background: var(--card); border: 1px solid var(--line); border-radius: 22px 8px 22px 8px; padding: 18px 22px; margin-bottom: 12px; position: relative; }
+        .qa-pin { position: absolute; top: -7px; left: 22px; width: 12px; height: 12px; border-radius: 50%; background: var(--orange); box-shadow: 0 2px 4px rgba(0,0,0,.2); }
+        .qa-q-top { display: flex; align-items: center; justify-content: space-between; margin-bottom: 10px; flex-wrap: wrap; gap: 6px; }
+        .qa-tags { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
+        .qa-tag { font-family: 'Poppins', sans-serif; font-size: 10.5px; font-weight: 600; background: #F1E7D4; color: var(--inks); padding: 4px 10px; border-radius: 999px; }
+        .qa-tag.resolved { color: var(--ok); background: #E1EFE6; }
+        .qa-q-date { font-size: 11.5px; color: var(--inks); }
+        .qa-q-item h4 { font-family: 'Poppins', sans-serif; font-weight: 700; font-size: 15.5px; margin: 0 0 14px; color: var(--ink); line-height: 1.4; }
+        .qa-q-actions { display: flex; gap: 8px; flex-wrap: wrap; }
+        .qa-chip { font-family: 'Poppins', sans-serif; font-size: 12px; font-weight: 600; background: none; border: 1px solid var(--line); color: var(--inks); padding: 8px 14px; border-radius: 999px; cursor: pointer; }
+        .qa-chip.primary { color: #fff; background: var(--teal); border-color: var(--teal); }
+        .qa-chip.primary:hover { background: var(--teal-d); }
+        .qa-chip.danger { color: var(--danger); border-color: #EAC7BC; }
 
-        {/* Question list */}
-        <div style={styles.list}>
-          {questions.map(q => (
-            <Card key={q.id} style={styles.questionCard}>
+        .qa-edit-box textarea { width: 100%; background: var(--cream); border: 1px solid var(--line); border-radius: 14px; padding: 11px 16px; color: var(--ink); font-size: 13px; font-family: 'Nunito', sans-serif; min-height: 80px; resize: none; margin-bottom: 10px; }
+        .qa-edit-actions { display: flex; gap: 8px; margin-bottom: 6px; }
 
-              {/* Card header */}
-              <div style={styles.questionHeader}>
-                <div style={styles.badgeRow}>
-                  <Badge tone="navy">{q.course_code}</Badge>
-                  {q.is_resolved && <Badge tone="green">Resolved</Badge>}
-                </div>
-                <span style={styles.questionMeta}>
-                  {new Date(q.created_at).toLocaleDateString()}
-                </span>
+        /* Answers view */
+        .qa-q-card { background: var(--card); border: 1px solid var(--line); border-radius: 22px 8px 22px 8px; padding: 20px 22px; margin-bottom: 22px; }
+        .qa-q-card h2 { font-family: 'Poppins', sans-serif; font-weight: 700; font-size: 17px; margin: 0; color: var(--ink); line-height: 1.4; }
+        .qa-section-title { font-family: 'Poppins', sans-serif; font-weight: 700; font-size: 14.5px; color: var(--teal-d); margin: 0 0 14px; }
+        .qa-answer { background: var(--card); border: 1px solid var(--line); border-radius: 18px 6px 18px 6px; padding: 16px 20px; margin-bottom: 12px; }
+        .qa-answer p { font-size: 13.5px; line-height: 1.6; margin: 0 0 12px; color: var(--ink); }
+        .qa-answer-meta { display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 8px; }
+        .qa-answer-date { font-size: 11.5px; color: var(--inks); }
+        .qa-answer-actions { display: flex; gap: 8px; align-items: center; }
+        .qa-accepted-badge { display: inline-block; font-size: 11px; font-weight: 700; color: var(--ok); background: #E1EFE6; padding: 3px 10px; border-radius: 999px; margin-bottom: 8px; font-family: 'Poppins', sans-serif; }
+        .qa-no-answers { font-size: 13px; color: var(--inks); text-align: center; padding: 20px 0; }
+
+        .qa-add-answer { background: var(--card); border: 1px dashed var(--line); border-radius: 18px; padding: 18px 20px; margin-top: 20px; }
+        .qa-add-answer textarea { width: 100%; background: var(--cream); border: 1px solid var(--line); border-radius: 14px; padding: 11px 16px; color: var(--ink); font-size: 13px; font-family: 'Nunito', sans-serif; min-height: 70px; resize: none; margin-bottom: 12px; }
+
+        /* Modal */
+        .qa-overlay { position: fixed; inset: 0; background: rgba(58,54,48,.5); display: flex; align-items: center; justify-content: center; z-index: 100; padding: 20px; font-family: 'Nunito', sans-serif; }
+        .qa-modal { width: 440px; max-width: 100%; background: var(--card); border: 1px solid var(--line); border-radius: 32px 12px 32px 12px; padding: 30px; box-shadow: 0 24px 50px rgba(40,25,10,.3); }
+        .qa-modal-head { display: flex; justify-content: space-between; align-items: center; }
+        .qa-modal-head h2 { font-family: 'Poppins', sans-serif; font-weight: 700; font-size: 19px; color: var(--teal-d); margin: 0; }
+        .qa-close-btn { background: none; border: none; color: var(--inks); font-size: 13px; cursor: pointer; font-family: 'Poppins', sans-serif; font-weight: 600; }
+        .qa-modal-note { font-size: 12.5px; color: var(--inks); margin: 10px 0 6px; line-height: 1.55; background: #FBEAD5; padding: 10px 14px; border-radius: 12px; }
+        .qa-modal label { display: block; font-family: 'Poppins', sans-serif; font-size: 12px; font-weight: 600; color: var(--ink); margin: 16px 0 7px; }
+        .qa-modal input, .qa-modal textarea { width: 100%; background: var(--cream); border: 1px solid var(--line); border-radius: 14px; padding: 11px 16px; color: var(--ink); font-size: 13px; font-family: 'Nunito', sans-serif; }
+        .qa-modal input:focus, .qa-modal textarea:focus { outline: none; border-color: var(--teal); }
+        .qa-modal textarea { min-height: 100px; resize: none; }
+        .qa-modal .qa-btn-primary { width: 100%; margin-top: 22px; padding: 14px; }
+      `}</style>
+
+      <div className="qa-page">
+        <div className="qa-wrap">
+
+          {/* Navbar */}
+          <nav className="qa-nav">
+            <div className="qa-brand">
+              <div className="qa-brand-mark">CC</div>
+              <div className="qa-brand-name">CampusConnect</div>
+            </div>
+            <div className="qa-nav-right">
+              <div className={`qa-status${isOnline ? '' : ' offline'}`}>
+                <span className="qa-status-dot"></span>
+                {isOnline ? 'offline ready' : 'offline mode'}
+              </div>
+              <div className="qa-user-name">{user?.full_name}</div>
+              <button className="qa-logout-btn" onClick={handleLogout}>Logout</button>
+            </div>
+          </nav>
+
+          {error && <div className="qa-error">{error}</div>}
+
+          {/* ── Answers view ── */}
+          {viewingQuestion ? (
+            <>
+              <div className="qa-page-head-left" style={{ marginBottom: '20px' }}>
+                <button className="qa-back-btn" onClick={closeAnswers}>Back to Q&A</button>
               </div>
 
-              {/* Question body */}
-              {editingQuestion === q.id ? (
-                <div style={{ marginBottom: '14px' }}>
-                  <Textarea
-                    value={editBody}
-                    onChange={e => setEditBody(e.target.value)}
-                    style={{ minHeight: '80px', resize: 'none' }}
-                  />
-                  <div style={{ display: 'flex', gap: '8px', marginTop: '8px' }}>
-                    <Button variant="primary" size="sm" onClick={() => handleEditQuestion(q.id)}>
-                      Save
-                    </Button>
-                    <Button variant="ghost" size="sm" onClick={() => setEditingQuestion(null)}>
-                      Cancel
-                    </Button>
-                  </div>
+              <div className="qa-q-card">
+                <div className="qa-tags" style={{ marginBottom: '10px' }}>
+                  <span className="qa-tag">{viewingQuestion.course_code}</span>
+                  {viewingQuestion.is_resolved && <span className="qa-tag resolved">Resolved</span>}
                 </div>
-              ) : (
-                <p style={styles.questionBody}>{q.body}</p>
+                <h2>{viewingQuestion.body}</h2>
+              </div>
+
+              <div className="qa-section-title">Answers ({answers.length})</div>
+
+              {answers.length === 0 && (
+                <p className="qa-no-answers">No answers yet. Be the first to help.</p>
               )}
 
-              {/* Actions */}
-              <div style={styles.questionFooter}>
-                <button style={styles.upvoteBtn} onClick={() => handleUpvote(q.id, 'question')}>
-                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none"
-                    stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                    <path d="M12 19V5M5 12l7-7 7 7"/>
-                  </svg>
-                  {q.upvote_count}
-                </button>
+              {answers.map((a) => (
+                <div key={a.id} className="qa-answer">
+                  {a.is_accepted && <div className="qa-accepted-badge">Accepted Answer</div>}
 
-                <button style={styles.expandBtn} onClick={() => handleExpand(q.id)}>
-                  {expandedId === q.id ? 'Hide Answers' : 'View Answers'}
-                </button>
+                  {editingAnswer === a.id ? (
+                    <div className="qa-edit-box">
+                      <textarea value={editBody} onChange={(e) => setEditBody(e.target.value)} />
+                      <div className="qa-edit-actions">
+                        <button className="qa-chip primary" onClick={() => handleEditAnswer(a.id)}>Save</button>
+                        <button className="qa-chip" onClick={() => setEditingAnswer(null)}>Cancel</button>
+                      </div>
+                    </div>
+                  ) : (
+                    <>
+                      <p>{a.body}</p>
+                      <div className="qa-answer-meta">
+                        <span className="qa-answer-date">
+                          posted anonymously · {new Date(a.created_at).toLocaleDateString()}
+                        </span>
+                        <div className="qa-answer-actions">
+                          <button className="qa-chip" onClick={() => handleUpvote(a.id, 'answer')}>↑ {a.upvote_count}</button>
+                          {a.author_id === user?.id && (
+                            <>
+                              <button className="qa-chip" onClick={() => { setEditingAnswer(a.id); setEditBody(a.body); }}>Edit</button>
+                              <button className="qa-chip danger" onClick={() => handleDeleteAnswer(a.id)}>Delete</button>
+                            </>
+                          )}
+                        </div>
+                      </div>
+                    </>
+                  )}
+                </div>
+              ))}
 
-                {q.author_id === user?.id && !q.is_resolved && (
-                  <button style={styles.resolveBtn} onClick={() => handleResolve(q.id)}>
-                    Mark Resolved
-                  </button>
-                )}
+              <div className="qa-add-answer">
+                <textarea
+                  placeholder="Share what worked for you..."
+                  value={newAnswer}
+                  onChange={(e) => setNewAnswer(e.target.value)}
+                />
+                <button className="qa-btn-primary" onClick={handlePostAnswer}>Post Answer Anonymously</button>
+              </div>
+            </>
+          ) : (
+            <>
+              {/* ── List view ── */}
+              <div className="qa-page-head">
+                <div className="qa-page-head-left">
+                  <button className="qa-back-btn" onClick={() => navigate('/home')}>Back</button>
+                  <h1 className="qa-h1">Anonymous Q&amp;A</h1>
+                </div>
+                <button className="qa-btn-primary" onClick={() => setShowAskForm(true)}>Ask a Question</button>
+              </div>
 
-                {q.author_id === user?.id && (
-                  <>
-                    <button
-                      style={styles.editBtn}
-                      onClick={() => { setEditingQuestion(q.id); setEditBody(q.body); }}
-                    >
-                      Edit
-                    </button>
-                    <button style={styles.deleteBtn} onClick={() => handleDeleteQuestion(q.id)}>
-                      Delete
-                    </button>
-                  </>
+              <div className="qa-filter-row">
+                <input
+                  placeholder="Filter by course code e.g. CS-301"
+                  value={filterCode}
+                  onChange={(e) => setFilterCode(e.target.value)}
+                  list="qa-filter-suggestions"
+                />
+                <datalist id="qa-filter-suggestions">
+                  {suggestions.map((c) => <option key={c} value={c} />)}
+                </datalist>
+                {filterCode && (
+                  <button className="qa-clear-btn" onClick={() => setFilterCode('')}>Clear</button>
                 )}
               </div>
 
-              {/* Answers section */}
-              {expandedId === q.id && (
-                <div style={styles.answersSection}>
-                  {answers.length === 0 && (
-                    <p style={styles.noAnswers}>
-                      No answers yet. Be the first to help.
-                    </p>
+              {loading && (
+                <p style={{ color: 'var(--inks)', textAlign: 'center', padding: '48px 0' }}>Loading questions...</p>
+              )}
+
+              {!loading && questions.length === 0 && (
+                <div className="qa-empty">
+                  <h3>No questions yet</h3>
+                  <p>Be the first to ask a question for this course</p>
+                  <button className="qa-btn-primary" onClick={() => setShowAskForm(true)}>Ask a Question</button>
+                </div>
+              )}
+
+              {questions.map((q) => (
+                <div key={q.id} className="qa-q-item">
+                  <div className="qa-pin"></div>
+                  <div className="qa-q-top">
+                    <div className="qa-tags">
+                      <span className="qa-tag">{q.course_code}</span>
+                      {q.is_resolved && <span className="qa-tag resolved">Resolved</span>}
+                    </div>
+                    <span className="qa-q-date">{new Date(q.created_at).toLocaleDateString()}</span>
+                  </div>
+
+                  {editingQuestion === q.id ? (
+                    <div className="qa-edit-box">
+                      <textarea value={editBody} onChange={(e) => setEditBody(e.target.value)} />
+                      <div className="qa-edit-actions">
+                        <button className="qa-chip primary" onClick={() => handleEditQuestion(q.id)}>Save</button>
+                        <button className="qa-chip" onClick={() => setEditingQuestion(null)}>Cancel</button>
+                      </div>
+                    </div>
+                  ) : (
+                    <h4>{q.body}</h4>
                   )}
 
-                  {answers.map(a => (
-                    <div key={a.id} style={styles.answerCard}>
-                      {a.is_accepted && (
-                        <div style={styles.acceptedBadge}>Accepted Answer</div>
-                      )}
-
-                      {editingAnswer === a.id ? (
-                        <div>
-                          <Textarea
-                            value={editBody}
-                            onChange={e => setEditBody(e.target.value)}
-                            style={{ minHeight: '72px', resize: 'none', marginBottom: '8px' }}
-                          />
-                          <div style={{ display: 'flex', gap: '8px' }}>
-                            <Button variant="primary" size="sm" onClick={() => handleEditAnswer(a.id)}>
-                              Save
-                            </Button>
-                            <Button variant="ghost" size="sm" onClick={() => setEditingAnswer(null)}>
-                              Cancel
-                            </Button>
-                          </div>
-                        </div>
-                      ) : (
-                        <>
-                          <p style={styles.answerBody}>{a.body}</p>
-                          <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
-                            <button style={styles.upvoteBtnSm} onClick={() => handleUpvote(a.id, 'answer')}>
-                              <svg width="12" height="12" viewBox="0 0 24 24" fill="none"
-                                stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                                <path d="M12 19V5M5 12l7-7 7 7"/>
-                              </svg>
-                              {a.upvote_count}
-                            </button>
-                            {a.author_id === user?.id && (
-                              <>
-                                <button
-                                  style={styles.editBtnSm}
-                                  onClick={() => { setEditingAnswer(a.id); setEditBody(a.body); }}
-                                >
-                                  Edit
-                                </button>
-                                <button
-                                  style={styles.deleteBtnSm}
-                                  onClick={() => handleDeleteAnswer(a.id)}
-                                >
-                                  Delete
-                                </button>
-                              </>
-                            )}
-                          </div>
-                        </>
-                      )}
-                    </div>
-                  ))}
-
-                  {/* Post answer */}
-                  <div style={styles.answerFormRow}>
-                    <Textarea
-                      placeholder="Write an answer anonymously..."
-                      value={newAnswer}
-                      onChange={e => setNewAnswer(e.target.value)}
-                      style={{ minHeight: '72px', flex: 1, resize: 'none' }}
-                    />
-                    <Button
-                      variant="primary"
-                      size="sm"
-                      onClick={() => handlePostAnswer(q.id)}
-                      style={{ alignSelf: 'flex-end' }}
-                    >
-                      Post Answer
-                    </Button>
+                  <div className="qa-q-actions">
+                    <button className="qa-chip" onClick={() => handleUpvote(q.id, 'question')}>↑ {q.upvote_count}</button>
+                    <button className="qa-chip primary" onClick={() => openAnswers(q)}>View Answers</button>
+                    {q.author_id === user?.id && !q.is_resolved && (
+                      <button className="qa-chip" onClick={() => handleResolve(q.id)}>Mark Resolved</button>
+                    )}
+                    {q.author_id === user?.id && (
+                      <>
+                        <button className="qa-chip" onClick={() => { setEditingQuestion(q.id); setEditBody(q.body); }}>Edit</button>
+                        <button className="qa-chip danger" onClick={() => handleDeleteQuestion(q.id)}>Delete</button>
+                      </>
+                    )}
                   </div>
                 </div>
-              )}
-            </Card>
-          ))}
-        </div>
+              ))}
+            </>
+          )}
 
-      </PageContent>
+        </div>
+      </div>
 
       {/* Ask Question Modal */}
       {showAskForm && (
-        <Modal
-          title="Ask a Question"
-          onClose={() => setShowAskForm(false)}
-        >
-          <p style={{ fontSize: '13px', color: 'var(--text-secondary)', marginBottom: '16px' }}>
-            Your question will be posted anonymously — no one will see your name.
-          </p>
+        <div className="qa-overlay">
+          <div className="qa-modal">
+            <div className="qa-modal-head">
+              <h2>Ask a Question</h2>
+              <button className="qa-close-btn" onClick={() => setShowAskForm(false)}>Close</button>
+            </div>
+            <p className="qa-modal-note">Your question will be posted anonymously,no one will see your name.</p>
 
-          <form onSubmit={handlePostQuestion}>
-            <Field label="Course Code">
-              <Input
+            <form onSubmit={handlePostQuestion}>
+              <label>Course Code</label>
+              <input
                 placeholder="e.g. CS-301"
                 value={newQuestion.course_code}
-                onChange={e => setNewQuestion({ ...newQuestion, course_code: e.target.value })}
-                list="qna-ask-suggestions"
+                onChange={(e) => setNewQuestion({ ...newQuestion, course_code: e.target.value })}
+                list="qa-ask-suggestions"
                 required
               />
-              <datalist id="qna-ask-suggestions">
-                {suggestions.map(c => <option key={c} value={c} />)}
+              <datalist id="qa-ask-suggestions">
+                {suggestions.map((c) => <option key={c} value={c} />)}
               </datalist>
-            </Field>
 
-            <Field label="Your Question">
-              <Textarea
+              <label>Your Question</label>
+              <textarea
                 placeholder="Ask your question clearly so others can help you..."
                 value={newQuestion.body}
-                onChange={e => setNewQuestion({ ...newQuestion, body: e.target.value })}
-                style={{ minHeight: '100px',flex:1,resize:'none' }}
+                onChange={(e) => setNewQuestion({ ...newQuestion, body: e.target.value })}
                 required
               />
-            </Field>
 
-            <Button
-              type="submit"
-              variant="primary"
-              fullWidth
-              disabled={submitting}
-            >
-              {submitting ? 'Posting...' : 'Post Anonymously'}
-            </Button>
-          </form>
-        </Modal>
+              <button type="submit" className="qa-btn-primary" disabled={submitting}>
+                {submitting ? 'Posting...' : 'Post Anonymously'}
+              </button>
+            </form>
+          </div>
+        </div>
       )}
-
-    </PageWrapper>
+    </>
   );
-};
-
-const styles = {
-  filterRow: {
-    display: 'flex',
-    gap: '10px',
-    marginBottom: '20px',
-    alignItems: 'center',
-  },
-  searchIcon: {
-    position: 'absolute',
-    left: '12px',
-    top: '50%',
-    transform: 'translateY(-50%)',
-    pointerEvents: 'none',
-  },
-  list: {
-    display: 'flex',
-    flexDirection: 'column',
-    gap: '10px',
-  },
-  questionCard: {
-    padding: '18px 20px',
-  },
-  questionHeader: {
-    display: 'flex',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: '10px',
-  },
-  badgeRow: {
-    display: 'flex',
-    gap: '6px',
-    alignItems: 'center',
-  },
-  questionMeta: {
-    fontSize: '11px',
-    color: 'var(--text-muted)',
-  },
-  questionBody: {
-    fontSize: '14px',
-    color: 'var(--text-primary)',
-    lineHeight: '1.6',
-    marginBottom: '14px',
-  },
-  questionFooter: {
-    display: 'flex',
-    gap: '8px',
-    alignItems: 'center',
-    flexWrap: 'wrap',
-  },
-  upvoteBtn: {
-    display: 'inline-flex',
-    alignItems: 'center',
-    gap: '5px',
-    height: '30px',
-    padding: '0 10px',
-    background: 'var(--surface-muted)',
-    border: 'none',
-    borderRadius: 'var(--radius-sm)',
-    fontSize: '12px',
-    fontWeight: '500',
-    color: 'var(--text-secondary)',
-    cursor: 'pointer',
-    fontFamily: 'Inter, sans-serif',
-  },
-  expandBtn: {
-    display: 'inline-flex',
-    alignItems: 'center',
-    height: '30px',
-    padding: '0 10px',
-    background: 'transparent',
-    border: '1px solid var(--border)',
-    borderRadius: 'var(--radius-sm)',
-    fontSize: '12px',
-    fontWeight: '500',
-    color: 'var(--primary)',
-    cursor: 'pointer',
-    fontFamily: 'Inter, sans-serif',
-  },
-  resolveBtn: {
-    display: 'inline-flex',
-    alignItems: 'center',
-    height: '30px',
-    padding: '0 10px',
-    background: 'transparent',
-    border: '1px solid var(--border)',
-    borderRadius: 'var(--radius-sm)',
-    fontSize: '12px',
-    fontWeight: '500',
-    color: 'var(--text-secondary)',
-    cursor: 'pointer',
-    fontFamily: 'Inter, sans-serif',
-  },
-  answersSection: {
-    marginTop: '16px',
-    paddingTop: '16px',
-    borderTop: '1px solid var(--border)',
-    display: 'flex',
-    flexDirection: 'column',
-    gap: '10px',
-  },
-  noAnswers: {
-    fontSize: '13px',
-    color: 'var(--text-muted)',
-    textAlign: 'center',
-    padding: '12px 0',
-  },
-  answerCard: {
-    background: 'var(--surface-muted)',
-    borderRadius: 'var(--radius-sm)',
-    padding: '12px 14px',
-  },
-  acceptedBadge: {
-    display: 'inline-block',
-    fontSize: '11px',
-    fontWeight: '600',
-    color: 'var(--success)',
-    background: 'var(--success-bg)',
-    padding: '2px 8px',
-    borderRadius: '20px',
-    marginBottom: '6px',
-  },
-  answerBody: {
-    fontSize: '13px',
-    color: 'var(--text-primary)',
-    lineHeight: '1.6',
-    marginBottom: '8px',
-  },
-  upvoteBtnSm: {
-    display: 'inline-flex',
-    alignItems: 'center',
-    gap: '4px',
-    height: '26px',
-    padding: '0 8px',
-    background: 'var(--surface)',
-    border: '1px solid var(--border)',
-    borderRadius: 'var(--radius-sm)',
-    fontSize: '11px',
-    color: 'var(--text-secondary)',
-    cursor: 'pointer',
-    fontFamily: 'Inter, sans-serif',
-  },
-  answerFormRow: {
-    display: 'flex',
-    gap: '10px',
-    alignItems: 'flex-start',
-    marginTop: '4px',
-  },
-  editBtn: {
-  display: 'inline-flex', alignItems: 'center',
-  height: '30px', padding: '0 10px',
-  background: 'transparent', border: '1px solid var(--border)',
-  borderRadius: 'var(--radius-sm)', fontSize: '12px',
-  fontWeight: '500', color: 'var(--primary)',
-  cursor: 'pointer', fontFamily: 'Inter, sans-serif',
-},
-deleteBtn: {
-  display: 'inline-flex', alignItems: 'center',
-  height: '30px', padding: '0 10px',
-  background: 'transparent', border: '1px solid var(--border)',
-  borderRadius: 'var(--radius-sm)', fontSize: '12px',
-  fontWeight: '500', color: 'var(--error)',
-  cursor: 'pointer', fontFamily: 'Inter, sans-serif',
-},
-editBtnSm: {
-  display: 'inline-flex', alignItems: 'center',
-  height: '26px', padding: '0 8px',
-  background: 'var(--surface)', border: '1px solid var(--border)',
-  borderRadius: 'var(--radius-sm)', fontSize: '11px',
-  color: 'var(--primary)', cursor: 'pointer',
-  fontFamily: 'Inter, sans-serif',
-},
-deleteBtnSm: {
-  display: 'inline-flex', alignItems: 'center',
-  height: '26px', padding: '0 8px',
-  background: 'var(--surface)', border: '1px solid var(--border)',
-  borderRadius: 'var(--radius-sm)', fontSize: '11px',
-  color: 'var(--error)', cursor: 'pointer',
-  fontFamily: 'Inter, sans-serif',
-},
 };
 
 export default QnA;

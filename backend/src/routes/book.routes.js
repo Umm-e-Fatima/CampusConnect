@@ -3,10 +3,25 @@ const pool = require('../config/db');
 const { authenticate } = require('../middleware/auth.middleware');
 const { generatePIN, getPINExpiry } = require('../utils/pin.utils');
 
+// Reverts any listing stuck in 'pending' whose PIN expired without confirmation
+const revertExpiredPending = async () => {
+  await pool.query(
+    `UPDATE book_listings
+     SET status = 'available', updated_at = NOW()
+     WHERE status = 'pending'
+       AND id IN (
+         SELECT listing_id FROM book_requests
+         WHERE status = 'pin_issued' AND pin_expires_at < NOW()
+       )`
+  );
+};
+
 // GET /api/books?type=paid&course_code=CS-301
 router.get('/', authenticate, async (req, res) => {
   const { type, course_code } = req.query;
   try {
+    await revertExpiredPending();
+
     const conditions = ['b.is_active = TRUE', "b.status = 'available'"];
     const params = [];
 
@@ -69,7 +84,7 @@ router.post('/', authenticate, async (req, res) => {
   const {
     title, author, course_code, condition,
     listing_type, price, women_only,
-    borrow_days_limit, dropoff_location, contact_info,
+    borrow_days_limit, dropoff_location, contact_info, payment_info,
   } = req.body;
 
   if (!title || !listing_type)
@@ -83,8 +98,8 @@ router.post('/', authenticate, async (req, res) => {
     const result = await pool.query(
     `INSERT INTO book_listings
       (seller_id, title, author, course_code, condition,
-      listing_type, price, women_only, dropoff_location, contact_info)
-    VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10)
+      listing_type, price, women_only, dropoff_location, contact_info, payment_info)
+    VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11)
     RETURNING *`,
     [
       req.user.id,
@@ -97,6 +112,7 @@ router.post('/', authenticate, async (req, res) => {
       women_only || false,
       dropoff_location || null,
       contact_info || null,
+      payment_info || null,
     ]
   );
     res.status(201).json(result.rows[0]);
@@ -166,6 +182,8 @@ router.post('/:id/request', authenticate, async (req, res) => {
   const { borrow_days } = req.body;
 
   try {
+    await revertExpiredPending();
+
     const listing = await pool.query(
       "SELECT * FROM book_listings WHERE id = $1 AND status = 'available' AND is_active = TRUE",
       [req.params.id]
@@ -217,6 +235,7 @@ router.post('/:id/request', authenticate, async (req, res) => {
       pin: pin_code,
       expires_at: pin_expires_at,
       dropoff_location: listing.rows[0].dropoff_location || null,
+      payment_info: listing.rows[0].payment_info || null,
       ...(borrow_due_date && { due_date: borrow_due_date }),
       ...(totalPrice && { total_price: `Rs. ${totalPrice}` }),
     });

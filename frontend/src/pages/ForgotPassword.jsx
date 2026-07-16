@@ -1,13 +1,11 @@
 import React, { useState } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import api from '../utils/api';
-import { Button, Field, Input, Alert, Logo } from '../components/UI';
 
 const ForgotPassword = () => {
-  const [email, setEmail]         = useState('');
-  const [submitted, setSubmitted] = useState(false);
-  const [error, setError]         = useState('');
-  const [loading, setLoading]     = useState(false);
+  const [email, setEmail] = useState('');
+  const [error, setError]     = useState('');
+  const [loading, setLoading] = useState(false);
   const navigate = useNavigate();
 
   const handleSubmit = async (e) => {
@@ -16,167 +14,124 @@ const ForgotPassword = () => {
     setLoading(true);
     try {
       await api.post('/auth/forgot-password', { email });
-      setSubmitted(true);
+      navigate('/reset-password', { state: { email } });
     } catch (err) {
-      setError(err.response?.data?.error || 'Failed to send reset code');
+      setError(err.response?.data?.error || 'Something went wrong. Please try again.');
     } finally {
       setLoading(false);
     }
   };
 
-  if (submitted) {
-    return (
-      <div style={styles.page}>
-        <div style={styles.container}>
-          <Logo size="md" />
-          <p style={styles.tagline}>Learn Together, Grow Together</p>
+  return (
+    <>
+      <style>{`
+        @import url('https://fonts.googleapis.com/css2?family=Poppins:wght@500;600;700;800&family=Nunito:wght@400;600;700&display=swap');
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+        .fp-input:focus { border-color: #1D6F68 !important; outline: none; }
+        .fp-btn:hover { background: #C97324 !important; }
+        .fp-btn:disabled { opacity: 0.7; cursor: not-allowed; }
+        .fp-page { min-height: 100vh; display: flex; flex-direction: column; background: #FBF3E5; font-family: 'Nunito', sans-serif; color: #3A3630; }
+        .fp-nav { display: flex; align-items: center; padding: 26px 48px; flex-shrink: 0; }
+        .fp-brand { display: flex; align-items: center; gap: 10px; }
+        .fp-brand-mark { width: 32px; height: 32px; border-radius: 9px; background: #1D6F68; color: #fff; display: flex; align-items: center; justify-content: center; font-family: 'Poppins', sans-serif; font-weight: 700; font-size: 13px; }
+        .fp-brand-name { font-family: 'Poppins', sans-serif; font-weight: 700; font-size: 15px; color: #134F4A; }
+        .fp-brand-tag { font-family: 'Nunito', sans-serif; font-size: 11.5px; color: #8A8172; margin-left: 2px; }
+        .fp-hero { flex-grow: 1; display: grid; grid-template-columns: 1fr 1fr; align-items: center; gap: 20px; padding-left: 64px; min-height: 0; }
+        .fp-left { max-width: 440px; }
+        .fp-h1 { font-family: 'Poppins', sans-serif; font-weight: 700; font-size: 40px; color: #134F4A; line-height: 1.15; margin: 0 0 14px; letter-spacing: -0.01em; }
+        .fp-sub { font-size: 14.5px; color: #8A8172; line-height: 1.7; margin: 0 0 28px; max-width: 380px; }
+        .fp-error { background: #ffeaea; color: #c0392b; border: 1px solid rgba(192,57,43,0.2); border-radius: 8px; padding: 8px 12px; font-size: 12.5px; margin-bottom: 16px; max-width: 360px; }
+        .fp-form { max-width: 360px; }
+        .fp-label { display: block; font-family: 'Poppins', sans-serif; font-size: 11.5px; font-weight: 600; color: #3A3630; margin-bottom: 6px; letter-spacing: 0.02em; }
+        .fp-input { width: 100%; background: #FFFDF8; border: 1px solid #E9DCC3; border-radius: 12px; padding: 12px 16px; color: #3A3630; font-size: 13.5px; margin-bottom: 16px; font-family: 'Nunito', sans-serif; transition: border-color 0.15s; }
+        .fp-btn { background: #E2903C; color: #fff; font-family: 'Poppins', sans-serif; font-weight: 600; font-size: 14px; padding: 14px 34px; border: none; border-radius: 999px; cursor: pointer; box-shadow: 0 10px 22px rgba(226,144,60,.35); margin-top: 4px; transition: background 0.15s; }
+        .fp-back-line { margin-top: 22px; font-size: 12.5px; }
+        .fp-back-line a { color: #1D6F68; text-decoration: underline; text-underline-offset: 3px; }
+        .fp-right { position: relative; height: 100%; min-height: 480px; overflow: hidden; }
+        .fp-right svg { display: block; width: 100%; height: 100%; }
+      `}</style>
 
-          <div style={styles.card}>
-            <div style={styles.successIcon}>
-              <svg width="28" height="28" viewBox="0 0 24 24" fill="none"
-                stroke="var(--success)" strokeWidth="2.5" strokeLinecap="round"
-                strokeLinejoin="round">
-                <path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07A19.5 19.5 0 0 1 4.69 12 19.79 19.79 0 0 1 1.61 3.36 2 2 0 0 1 3.6 1h3a2 2 0 0 1 2 1.72c.127.96.361 1.903.7 2.81a2 2 0 0 1-.45 2.11L7.91 8.96a16 16 0 0 0 6.13 6.13l1.02-.95a2 2 0 0 1 2.11-.45c.907.339 1.85.573 2.81.7A2 2 0 0 1 22 16.92z"/>
-              </svg>
-            </div>
-            <h2 style={styles.cardTitle}>Check your email</h2>
-            <p style={styles.cardSubtitle}>
-              If <strong style={{ color: 'var(--primary)' }}>{email}</strong> is
-              registered, a reset code has been sent. Check your inbox and enter
-              the code on the next screen.
+      <div className="fp-page">
+
+        {/* Navbar */}
+        <nav className="fp-nav">
+          <div className="fp-brand">
+            <div className="fp-brand-mark">CC</div>
+            <div className="fp-brand-name">CampusConnect</div>
+            <span className="fp-brand-tag">· learn together, grow together</span>
+          </div>
+        </nav>
+
+        {/* Hero */}
+        <div className="fp-hero">
+
+          {/* Left */}
+          <div className="fp-left">
+            <h1 className="fp-h1">Lost your page?</h1>
+            <p className="fp-sub">
+              Enter your university email and we'll send a code to help you back in.
             </p>
 
-            <Button
-              variant="primary"
-              fullWidth
-              size="lg"
-              onClick={() => navigate('/reset-password', { state: { email } })}
-              style={{ marginBottom: '12px' }}
-            >
-              Enter Reset Code
-            </Button>
+            {error && <div className="fp-error">{error}</div>}
 
-            <div style={{ textAlign: 'center' }}>
-              <Link to="/login" style={styles.link}>Back to login</Link>
-            </div>
-          </div>
-        </div>
-      </div>
-    );
-  }
-
-  return (
-    <div style={styles.page}>
-      <div style={styles.container}>
-        <Logo size="md" />
-        <p style={styles.tagline}>Learn Together, Grow Together</p>
-
-        <div style={styles.card}>
-          <h2 style={styles.cardTitle}>Forgot password?</h2>
-          <p style={styles.cardSubtitle}>
-            Enter your university email and we will send you a reset code
-          </p>
-
-          {error && (
-            <Alert type="error" style={{ marginBottom: '16px' }}>
-              {error}
-            </Alert>
-          )}
-
-          <form onSubmit={handleSubmit}>
-            <Field label="University Email" htmlFor="email">
-              <Input
-                id="email"
+            <form className="fp-form" onSubmit={handleSubmit}>
+              <label className="fp-label">University Email</label>
+              <input
+                className="fp-input"
                 type="email"
                 placeholder="you@university.edu.pk"
                 value={email}
-                onChange={e => setEmail(e.target.value)}
-                autoComplete="email"
+                onChange={(e) => setEmail(e.target.value)}
                 required
               />
-            </Field>
+              <button
+                type="submit"
+                className="fp-btn"
+                disabled={loading}
+              >
+                {loading ? 'Sending...' : 'Send Reset Code'}
+              </button>
+            </form>
 
-            <Button
-              type="submit"
-              variant="primary"
-              fullWidth
-              size="lg"
-              disabled={loading}
-              style={{ marginTop: '4px' }}
-            >
-              {loading ? 'Sending...' : 'Send Reset Code'}
-            </Button>
-          </form>
-
-          <div style={{ textAlign: 'center', marginTop: '16px' }}>
-            <Link to="/login" style={styles.link}>Back to login</Link>
+            <div className="fp-back-line">
+              <Link to="/login">← Back to login</Link>
+            </div>
           </div>
+
+          {/* Right — wave image */}
+          <div className="fp-right">
+            <svg viewBox="0 0 600 860" preserveAspectRatio="xMidYMid slice">
+              <defs>
+                <clipPath id="fpWave">
+                  <path d="
+                    M600,0 L600,860
+                    C480,860 340,860 340,800
+                    C340,740 440,740 440,680
+                    C440,620 300,620 300,560
+                    C300,500 400,500 400,440
+                    C400,380 260,380 260,320
+                    C260,260 380,260 380,200
+                    C380,140 260,140 260,80
+                    C260,20 460,20 600,0 Z
+                  " />
+                </clipPath>
+              </defs>
+              <image
+                href="/library.jpg"
+                x="0" y="0"
+                width="600" height="860"
+                preserveAspectRatio="xMidYMid slice"
+                clipPath="url(#fpWave)"
+              />
+              <circle cx="300" cy="560" r="30" fill="#FBF3E5" />
+              <circle cx="380" cy="260" r="26" fill="#FBF3E5" />
+            </svg>
+          </div>
+
         </div>
       </div>
-    </div>
+    </>
   );
-};
-
-const styles = {
-  page: {
-    minHeight: '100vh',
-    background: 'var(--background)',
-    display: 'flex',
-    alignItems: 'center',
-    justifyContent: 'center',
-    padding: '24px',
-  },
-  container: {
-    width: '100%',
-    maxWidth: '420px',
-    display: 'flex',
-    flexDirection: 'column',
-    alignItems: 'center',
-  },
-  tagline: {
-    fontSize: '13px',
-    color: 'var(--text-secondary)',
-    marginTop: '8px',
-    marginBottom: '28px',
-  },
-  card: {
-    width: '100%',
-    background: 'var(--surface)',
-    borderRadius: 'var(--radius-lg)',
-    border: '1px solid var(--border)',
-    padding: '28px',
-    boxShadow: 'var(--shadow-sm)',
-  },
-  successIcon: {
-    width: '52px',
-    height: '52px',
-    background: 'var(--success-bg)',
-    borderRadius: '50%',
-    display: 'flex',
-    alignItems: 'center',
-    justifyContent: 'center',
-    margin: '0 auto 16px',
-  },
-  cardTitle: {
-    fontSize: '18px',
-    fontWeight: '700',
-    color: 'var(--text-primary)',
-    marginBottom: '6px',
-    textAlign: 'center',
-  },
-  cardSubtitle: {
-    fontSize: '13px',
-    color: 'var(--text-secondary)',
-    marginBottom: '22px',
-    lineHeight: '1.6',
-    textAlign: 'center',
-  },
-  link: {
-    fontSize: '13px',
-    color: 'var(--primary)',
-    fontWeight: '500',
-    textDecoration: 'none',
-  },
 };
 
 export default ForgotPassword;

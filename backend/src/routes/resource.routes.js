@@ -74,7 +74,7 @@ router.post('/', authenticate, async (req, res) => {
   const {
     course_code, title, resource_type, semester, year,
     file_url, cloudinary_id, file_size_kb,
-    listing_type, price, delivery_mode,
+    listing_type, price, delivery_mode, payment_info,
   } = req.body;
 
   if (!course_code || !title || !file_url || !cloudinary_id)
@@ -88,13 +88,13 @@ router.post('/', authenticate, async (req, res) => {
     const result = await pool.query(
       `INSERT INTO resources
         (uploaded_by, course_code, title, resource_type, semester, year,
-         file_url, cloudinary_id, file_size_kb, listing_type, price, delivery_mode)
-       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12)
+         file_url, cloudinary_id, file_size_kb, listing_type, price, delivery_mode, payment_info)
+       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13)
        RETURNING *`,
       [
         req.user.id, course_code.trim().toUpperCase(), title, resource_type, semester, year,
         file_url, cloudinary_id, file_size_kb,
-        finalListingType, price || null, delivery_mode || 'online',
+        finalListingType, price || null, delivery_mode || 'online', payment_info || null,
       ]
     );
     res.status(201).json(result.rows[0]);
