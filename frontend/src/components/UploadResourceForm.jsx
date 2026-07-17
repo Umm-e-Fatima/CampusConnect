@@ -8,7 +8,7 @@ const UPLOAD_PRESET = process.env.REACT_APP_CLOUDINARY_UPLOAD_PRESET;
 const UploadResourceForm = ({ onUploaded, onClose }) => {
   const [form, setForm] = useState({
     course_code: '', title: '', resource_type: 'notes',
-    semester: '', listing_type: 'gift', price: '',
+    semester: '', listing_type: 'gift', price: '', payment_info: '',
   });
   const [suggestions, setSuggestions] = useState([]);
   const [file, setFile]               = useState(null);
@@ -61,6 +61,7 @@ const UploadResourceForm = ({ onUploaded, onClose }) => {
         listing_type:  form.listing_type,
         price:         form.listing_type !== 'gift' ? parseFloat(form.price) : null,
         delivery_mode: 'online',
+        payment_info:  form.listing_type !== 'gift' ? form.payment_info.trim() || null : null,
       });
 
       onUploaded();
@@ -143,7 +144,7 @@ const UploadResourceForm = ({ onUploaded, onClose }) => {
             <datalist id="upload-course-suggestions">
               {suggestions.map(c => <option key={c} value={c} />)}
             </datalist>
-            <div className="upl-hint">type your course code — previous codes appear as suggestions</div>
+            <div className="upl-hint">type your course code,previous codes appear as suggestions</div>
 
             <label className="upl-label">Title</label>
             <input
@@ -177,9 +178,9 @@ const UploadResourceForm = ({ onUploaded, onClose }) => {
 
             <label className="upl-label">Listing Type</label>
             <select className="upl-select" name="listing_type" value={form.listing_type} onChange={handleChange}>
-              <option value="gift">Gift — Free for everyone</option>
-              <option value="borrow">Borrow — Rent per day (PKR)</option>
-              <option value="buy">Buy — One-time purchase (PKR)</option>
+              <option value="gift">Gift:Free for everyone</option>
+              <option value="borrow">Borrow:Rent per day (PKR)</option>
+              <option value="buy">Buy:One-time purchase (PKR)</option>
             </select>
 
             {form.listing_type !== 'gift' && (
@@ -197,7 +198,17 @@ const UploadResourceForm = ({ onUploaded, onClose }) => {
                   min="1"
                   required
                 />
-                <div className="upl-hint">Borrow/Buy purchase flow active — buyers will go through PIN confirmation</div>
+                <div className="upl-hint">Borrow/Buy purchase flow active,buyers will go through PIN confirmation</div>
+
+                <label className="upl-label">Payment Info</label>
+                <input
+                  className="upl-input"
+                  name="payment_info"
+                  placeholder="e.g. JazzCash: 03XX-XXXXXXX or bank account details"
+                  value={form.payment_info}
+                  onChange={handleChange}
+                />
+                <div className="upl-hint">Shown to the buyer as soon as they request,this is how they will pay you</div>
               </>
             )}
 

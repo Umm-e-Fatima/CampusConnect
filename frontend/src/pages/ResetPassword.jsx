@@ -109,38 +109,38 @@ const ResetPassword = () => {
         .rp-input:focus, .rp-otp-box:focus { border-color: #1D6F68 !important; outline: none; }
         .rp-btn:hover { background: #C97324 !important; }
         .rp-btn:disabled { opacity: 0.7; cursor: not-allowed; }
-        .rp-page { min-height: 100vh; display: flex; flex-direction: column; background: #FBF3E5; font-family: 'Nunito', sans-serif; color: #3A3630; }
-        .rp-nav { display: flex; align-items: center; padding: 26px 48px; flex-shrink: 0; }
+        .rp-page { height: 100vh; overflow: hidden; display: flex; flex-direction: column; background: #FBF3E5; font-family: 'Nunito', sans-serif; color: #3A3630; }
+        .rp-nav { display: flex; align-items: center; padding: 14px 40px; flex-shrink: 0; }
         .rp-brand { display: flex; align-items: center; gap: 10px; }
-        .rp-brand-mark { width: 32px; height: 32px; border-radius: 9px; background: #1D6F68; color: #fff; display: flex; align-items: center; justify-content: center; font-family: 'Poppins', sans-serif; font-weight: 700; font-size: 13px; }
-        .rp-brand-name { font-family: 'Poppins', sans-serif; font-weight: 700; font-size: 15px; color: #134F4A; }
-        .rp-brand-tag { font-family: 'Nunito', sans-serif; font-size: 11.5px; color: #8A8172; margin-left: 2px; }
-        .rp-hero { flex-grow: 1; display: grid; grid-template-columns: 1fr 1fr; align-items: center; gap: 20px; padding-left: 64px; min-height: 0; }
-        .rp-left { max-width: 460px; }
-        .rp-h1 { font-family: 'Poppins', sans-serif; font-weight: 700; font-size: 36px; color: #134F4A; line-height: 1.15; margin: 0 0 10px; letter-spacing: -0.01em; }
-        .rp-sub { font-size: 14px; color: #8A8172; line-height: 1.65; margin: 0 0 20px; max-width: 400px; }
+        .rp-brand-mark { width: 30px; height: 30px; border-radius: 8px; background: #1D6F68; color: #fff; display: flex; align-items: center; justify-content: center; font-family: 'Poppins', sans-serif; font-weight: 700; font-size: 12px; }
+        .rp-brand-name { font-family: 'Poppins', sans-serif; font-weight: 700; font-size: 14px; color: #134F4A; }
+        .rp-brand-tag { font-size: 11px; color: #8A8172; margin-left: 2px; }
+        .rp-hero { flex: 1; display: grid; grid-template-columns: 1fr 1fr; min-height: 0; overflow: hidden; }
+        .rp-left { display: flex; flex-direction: column; justify-content: center; padding: 18px 48px 18px 56px; overflow-y: auto; }
+        .rp-h1 { font-family: 'Poppins', sans-serif; font-weight: 700; font-size: 30px; color: #134F4A; line-height: 1.15; margin-bottom: 8px; letter-spacing: -0.01em; }
+        .rp-sub { font-size: 13px; color: #8A8172; line-height: 1.6; margin-bottom: 14px; max-width: 380px; }
         .rp-sub b { color: #3A3630; }
-        .rp-error { background: #ffeaea; color: #c0392b; border: 1px solid rgba(192,57,43,0.2); border-radius: 8px; padding: 8px 12px; font-size: 12.5px; margin-bottom: 14px; max-width: 400px; }
-        .rp-form { max-width: 400px; }
-        .rp-label { display: block; font-family: 'Poppins', sans-serif; font-size: 11.5px; font-weight: 600; color: #3A3630; margin-bottom: 6px; letter-spacing: 0.02em; }
-        .rp-otp-row { display: flex; gap: 8px; margin-bottom: 18px; }
-        .rp-otp-box { width: 44px; height: 52px; background: #FFFDF8; border: 2px solid #E9DCC3; border-radius: 12px; text-align: center; font-family: 'Poppins', sans-serif; font-weight: 700; font-size: 18px; color: #134F4A; outline: none; transition: border-color 0.15s; }
+        .rp-error { background: #ffeaea; color: #c0392b; border: 1px solid rgba(192,57,43,0.2); border-radius: 8px; padding: 8px 12px; font-size: 12.5px; margin-bottom: 12px; max-width: 380px; }
+        .rp-form { max-width: 380px; }
+        .rp-label { display: block; font-family: 'Poppins', sans-serif; font-size: 11px; font-weight: 600; color: #3A3630; margin-bottom: 5px; letter-spacing: 0.03em; text-transform: uppercase; }
+        .rp-otp-row { display: flex; gap: 8px; margin-bottom: 14px; }
+        .rp-otp-box { width: 40px; height: 48px; background: #FFFDF8; border: 2px solid #E9DCC3; border-radius: 10px; text-align: center; font-family: 'Poppins', sans-serif; font-weight: 700; font-size: 17px; color: #134F4A; outline: none; transition: border-color 0.15s; }
         .rp-otp-box.filled { border-color: #E2903C; }
-        .rp-input { width: 100%; background: #FFFDF8; border: 1px solid #E9DCC3; border-radius: 12px; padding: 12px 16px; color: #3A3630; font-size: 13.5px; margin-bottom: 4px; font-family: 'Nunito', sans-serif; transition: border-color 0.15s; }
-        .rp-hint { font-size: 11px; color: #8A8172; margin: 0 0 14px; }
-        .rp-mismatch { font-size: 11px; color: #c0392b; margin: 0 0 14px; }
-        .rp-checklist { list-style: none; margin: 0 0 14px 0; padding: 10px 12px; background: #FFFDF8; border: 1px solid #E9DCC3; border-radius: 10px; display: grid; grid-template-columns: 1fr 1fr; gap: 6px 10px; }
-        .rp-check-item { display: flex; align-items: center; gap: 6px; font-size: 11.5px; color: #8A8172; transition: color 0.15s; }
+        .rp-input { width: 100%; background: #FFFDF8; border: 1px solid #E9DCC3; border-radius: 10px; padding: 10px 14px; color: #3A3630; font-size: 13px; margin-bottom: 4px; font-family: 'Nunito', sans-serif; transition: border-color 0.15s; }
+        .rp-hint { font-size: 11px; color: #8A8172; margin: 0 0 10px; }
+        .rp-mismatch { font-size: 11px; color: #c0392b; margin: 0 0 10px; }
+        .rp-checklist { list-style: none; margin: 6px 0 12px 0; padding: 8px 10px; background: #FFFDF8; border: 1px solid #E9DCC3; border-radius: 10px; display: grid; grid-template-columns: 1fr 1fr; gap: 4px 10px; }
+        .rp-check-item { display: flex; align-items: center; gap: 6px; font-size: 11px; color: #8A8172; transition: color 0.15s; }
         .rp-check-item.passed { color: #1D6F68; font-weight: 600; }
-        .rp-check-icon { width: 14px; height: 14px; border-radius: 50%; border: 1.5px solid #D8CBB0; display: flex; align-items: center; justify-content: center; flex-shrink: 0; transition: all 0.15s; }
+        .rp-check-icon { width: 13px; height: 13px; border-radius: 50%; border: 1.5px solid #D8CBB0; display: flex; align-items: center; justify-content: center; flex-shrink: 0; transition: all 0.15s; }
         .rp-check-item.passed .rp-check-icon { background: #1D6F68; border-color: #1D6F68; }
-        .rp-check-icon svg { width: 8px; height: 8px; display: block; opacity: 0; transition: opacity 0.15s; }
+        .rp-check-icon svg { width: 7px; height: 7px; display: block; opacity: 0; transition: opacity 0.15s; }
         .rp-check-item.passed .rp-check-icon svg { opacity: 1; }
-        .rp-btn { background: #E2903C; color: #fff; font-family: 'Poppins', sans-serif; font-weight: 600; font-size: 14px; padding: 14px 34px; border: none; border-radius: 999px; cursor: pointer; box-shadow: 0 10px 22px rgba(226,144,60,.35); margin-top: 4px; transition: background 0.15s; }
-        .rp-back-line { margin-top: 20px; font-size: 12.5px; }
+        .rp-btn { background: #E2903C; color: #fff; font-family: 'Poppins', sans-serif; font-weight: 600; font-size: 13.5px; padding: 12px 32px; border: none; border-radius: 999px; cursor: pointer; box-shadow: 0 8px 20px rgba(226,144,60,.35); margin-top: 4px; transition: background 0.15s; }
+        .rp-back-line { margin-top: 14px; font-size: 12px; }
         .rp-back-line a { color: #1D6F68; text-decoration: underline; text-underline-offset: 3px; }
-        .rp-right { position: relative; height: 100%; min-height: 480px; overflow: hidden; }
-        .rp-right svg.rp-wave-svg { display: block; width: 100%; height: 100%; }
+        .rp-right { position: relative; overflow: hidden; }
+        .rp-right svg.rp-wave-svg { position: absolute; top: 0; left: 0; width: 100%; height: 100%; }
       `}</style>
 
       <div className="rp-page">
@@ -161,7 +161,7 @@ const ResetPassword = () => {
           <div className="rp-left">
             <h1 className="rp-h1">A fresh chapter.</h1>
             <p className="rp-sub">
-              Enter the code sent to <b>{email || 'your university email'}</b> and choose a new password to get back to your shelf.
+              Enter the code sent to <b>{email || 'your university email'}</b> and choose a new password.
             </p>
 
             {error && <div className="rp-error">{error}</div>}
@@ -224,7 +224,7 @@ const ResetPassword = () => {
               {confirmPassword.length > 0 && !passwordsMatch && (
                 <div className="rp-mismatch">Passwords do not match</div>
               )}
-              {passwordsMatch && <div style={{ marginBottom: '14px' }} />}
+              {passwordsMatch && <div style={{ marginBottom: '10px' }} />}
 
               <button
                 type="submit"
@@ -236,37 +236,39 @@ const ResetPassword = () => {
             </form>
 
             <div className="rp-back-line">
-              <Link to="/login">← Back to login</Link>
+              <Link to="/login">Back to login</Link>
             </div>
           </div>
 
           {/* Right — wave image */}
           <div className="rp-right">
-            <svg className="rp-wave-svg" viewBox="0 0 600 860" preserveAspectRatio="xMidYMid slice">
+            <svg
+              className="rp-wave-svg"
+              viewBox="0 0 600 900"
+              preserveAspectRatio="xMidYMid slice"
+            >
               <defs>
                 <clipPath id="rpWave">
                   <path d="
-                    M600,0 L600,860
-                    C480,860 340,860 340,800
-                    C340,740 440,740 440,680
-                    C440,620 300,620 300,560
-                    C300,500 400,500 400,440
-                    C400,380 260,380 260,320
-                    C260,260 380,260 380,200
-                    C380,140 260,140 260,80
-                    C260,20 460,20 600,0 Z
+                    M0,0 L600,0 L600,900 L0,900
+                    C80,900 180,900 180,840
+                    C180,780 80,780 80,720
+                    C80,660 180,660 180,600
+                    C180,540 60,540 60,480
+                    C60,420 180,420 180,360
+                    C180,300 60,300 60,240
+                    C60,180 180,180 180,120
+                    C180,60 80,60 0,0 Z
                   " />
                 </clipPath>
               </defs>
               <image
                 href="/library.jpg"
                 x="0" y="0"
-                width="600" height="860"
+                width="600" height="900"
                 preserveAspectRatio="xMidYMid slice"
                 clipPath="url(#rpWave)"
               />
-              <circle cx="300" cy="560" r="30" fill="#FBF3E5" />
-              <circle cx="380" cy="260" r="26" fill="#FBF3E5" />
             </svg>
           </div>
 

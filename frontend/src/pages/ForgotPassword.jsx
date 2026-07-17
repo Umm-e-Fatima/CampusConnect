@@ -30,25 +30,25 @@ const ForgotPassword = () => {
         .fp-input:focus { border-color: #1D6F68 !important; outline: none; }
         .fp-btn:hover { background: #C97324 !important; }
         .fp-btn:disabled { opacity: 0.7; cursor: not-allowed; }
-        .fp-page { min-height: 100vh; display: flex; flex-direction: column; background: #FBF3E5; font-family: 'Nunito', sans-serif; color: #3A3630; }
-        .fp-nav { display: flex; align-items: center; padding: 26px 48px; flex-shrink: 0; }
+        .fp-page { height: 100vh; overflow: hidden; display: flex; flex-direction: column; background: #FBF3E5; font-family: 'Nunito', sans-serif; color: #3A3630; }
+        .fp-nav { display: flex; align-items: center; padding: 14px 40px; flex-shrink: 0; }
         .fp-brand { display: flex; align-items: center; gap: 10px; }
-        .fp-brand-mark { width: 32px; height: 32px; border-radius: 9px; background: #1D6F68; color: #fff; display: flex; align-items: center; justify-content: center; font-family: 'Poppins', sans-serif; font-weight: 700; font-size: 13px; }
-        .fp-brand-name { font-family: 'Poppins', sans-serif; font-weight: 700; font-size: 15px; color: #134F4A; }
-        .fp-brand-tag { font-family: 'Nunito', sans-serif; font-size: 11.5px; color: #8A8172; margin-left: 2px; }
-        .fp-hero { flex-grow: 1; display: grid; grid-template-columns: 1fr 1fr; align-items: center; gap: 20px; padding-left: 64px; min-height: 0; }
-        .fp-left { max-width: 440px; }
-        .fp-h1 { font-family: 'Poppins', sans-serif; font-weight: 700; font-size: 40px; color: #134F4A; line-height: 1.15; margin: 0 0 14px; letter-spacing: -0.01em; }
-        .fp-sub { font-size: 14.5px; color: #8A8172; line-height: 1.7; margin: 0 0 28px; max-width: 380px; }
-        .fp-error { background: #ffeaea; color: #c0392b; border: 1px solid rgba(192,57,43,0.2); border-radius: 8px; padding: 8px 12px; font-size: 12.5px; margin-bottom: 16px; max-width: 360px; }
-        .fp-form { max-width: 360px; }
-        .fp-label { display: block; font-family: 'Poppins', sans-serif; font-size: 11.5px; font-weight: 600; color: #3A3630; margin-bottom: 6px; letter-spacing: 0.02em; }
-        .fp-input { width: 100%; background: #FFFDF8; border: 1px solid #E9DCC3; border-radius: 12px; padding: 12px 16px; color: #3A3630; font-size: 13.5px; margin-bottom: 16px; font-family: 'Nunito', sans-serif; transition: border-color 0.15s; }
-        .fp-btn { background: #E2903C; color: #fff; font-family: 'Poppins', sans-serif; font-weight: 600; font-size: 14px; padding: 14px 34px; border: none; border-radius: 999px; cursor: pointer; box-shadow: 0 10px 22px rgba(226,144,60,.35); margin-top: 4px; transition: background 0.15s; }
-        .fp-back-line { margin-top: 22px; font-size: 12.5px; }
+        .fp-brand-mark { width: 30px; height: 30px; border-radius: 8px; background: #1D6F68; color: #fff; display: flex; align-items: center; justify-content: center; font-family: 'Poppins', sans-serif; font-weight: 700; font-size: 12px; }
+        .fp-brand-name { font-family: 'Poppins', sans-serif; font-weight: 700; font-size: 14px; color: #134F4A; }
+        .fp-brand-tag { font-size: 11px; color: #8A8172; margin-left: 2px; }
+        .fp-hero { flex: 1; display: grid; grid-template-columns: 1fr 1fr; min-height: 0; overflow: hidden; }
+        .fp-left { display: flex; flex-direction: column; justify-content: center; padding: 20px 48px 28px 56px; }
+        .fp-h1 { font-family: 'Poppins', sans-serif; font-weight: 700; font-size: 34px; color: #134F4A; line-height: 1.15; margin-bottom: 10px; letter-spacing: -0.01em; }
+        .fp-sub { font-size: 13px; color: #8A8172; line-height: 1.65; margin-bottom: 18px; max-width: 360px; }
+        .fp-error { background: #ffeaea; color: #c0392b; border: 1px solid rgba(192,57,43,0.2); border-radius: 8px; padding: 8px 12px; font-size: 12.5px; margin-bottom: 12px; }
+        .fp-form { max-width: 340px; }
+        .fp-label { display: block; font-family: 'Poppins', sans-serif; font-size: 11px; font-weight: 600; color: #3A3630; margin-bottom: 5px; letter-spacing: 0.03em; text-transform: uppercase; }
+        .fp-input { width: 100%; background: #FFFDF8; border: 1px solid #E9DCC3; border-radius: 10px; padding: 10px 14px; color: #3A3630; font-size: 13px; margin-bottom: 12px; font-family: 'Nunito', sans-serif; transition: border-color 0.15s; }
+        .fp-btn { background: #E2903C; color: #fff; font-family: 'Poppins', sans-serif; font-weight: 600; font-size: 13.5px; padding: 12px 32px; border: none; border-radius: 999px; cursor: pointer; box-shadow: 0 8px 20px rgba(226,144,60,.35); margin-top: 4px; transition: background 0.15s; }
+        .fp-back-line { display: flex; align-items: center; gap: 16px; margin-top: 16px; font-size: 12px; }
         .fp-back-line a { color: #1D6F68; text-decoration: underline; text-underline-offset: 3px; }
-        .fp-right { position: relative; height: 100%; min-height: 480px; overflow: hidden; }
-        .fp-right svg { display: block; width: 100%; height: 100%; }
+        .fp-right { position: relative; overflow: hidden; }
+        .fp-right svg { position: absolute; top: 0; left: 0; width: 100%; height: 100%; }
       `}</style>
 
       <div className="fp-page">
@@ -94,37 +94,38 @@ const ForgotPassword = () => {
             </form>
 
             <div className="fp-back-line">
-              <Link to="/login">← Back to login</Link>
+              <Link to="/login">Back to login</Link>
             </div>
           </div>
 
           {/* Right — wave image */}
           <div className="fp-right">
-            <svg viewBox="0 0 600 860" preserveAspectRatio="xMidYMid slice">
+            <svg
+              viewBox="0 0 600 900"
+              preserveAspectRatio="xMidYMid slice"
+            >
               <defs>
                 <clipPath id="fpWave">
                   <path d="
-                    M600,0 L600,860
-                    C480,860 340,860 340,800
-                    C340,740 440,740 440,680
-                    C440,620 300,620 300,560
-                    C300,500 400,500 400,440
-                    C400,380 260,380 260,320
-                    C260,260 380,260 380,200
-                    C380,140 260,140 260,80
-                    C260,20 460,20 600,0 Z
+                    M0,0 L600,0 L600,900 L0,900
+                    C80,900 180,900 180,840
+                    C180,780 80,780 80,720
+                    C80,660 180,660 180,600
+                    C180,540 60,540 60,480
+                    C60,420 180,420 180,360
+                    C180,300 60,300 60,240
+                    C60,180 180,180 180,120
+                    C180,60 80,60 0,0 Z
                   " />
                 </clipPath>
               </defs>
               <image
                 href="/library.jpg"
                 x="0" y="0"
-                width="600" height="860"
+                width="600" height="900"
                 preserveAspectRatio="xMidYMid slice"
                 clipPath="url(#fpWave)"
               />
-              <circle cx="300" cy="560" r="30" fill="#FBF3E5" />
-              <circle cx="380" cy="260" r="26" fill="#FBF3E5" />
             </svg>
           </div>
 

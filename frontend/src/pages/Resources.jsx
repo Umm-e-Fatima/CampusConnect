@@ -18,6 +18,7 @@ const Resources = () => {
   const [requestForm, setRequestForm] = useState(null);
   const [borrowDays, setBorrowDays]   = useState('');
   const [requestMsg, setRequestMsg]   = useState('');
+  const [paymentInfo, setPaymentInfo] = useState(null);
   const [viewMode, setViewMode]       = useState('drawer'); // 'drawer' | 'list'
   const [page, setPage]               = useState(1);
   const [isOnline, setIsOnline]       = useState(navigator.onLine);
@@ -80,6 +81,7 @@ const Resources = () => {
   const handleRequest = (resource) => {
     setRequestForm(resource);
     setRequestMsg('');
+    setPaymentInfo(null);
     setBorrowDays('');
   };
 
@@ -94,6 +96,7 @@ const Resources = () => {
         body.borrow_days = parseInt(borrowDays);
       }
       const res = await api.post(`/resource-requests/${requestForm.id}`, body);
+      setPaymentInfo(res.data.payment_info || null);
       setRequestMsg(
         `Request created. PIN: ${res.data.pin} | Request ID: ${res.data.request_id} | ${res.data.total_price}`
       );
@@ -109,7 +112,7 @@ const Resources = () => {
   };
 
   const listingTag = (r) => {
-    if (r.listing_type === 'gift') return { text: 'Gift:Free', free: true };
+    if (r.listing_type === 'gift') return { text: 'Gift — Free', free: true };
     if (r.listing_type === 'borrow') return { text: `Borrow · Rs.${r.price}/day`, free: false };
     return { text: `Buy · Rs.${r.price}`, free: false };
   };
@@ -224,6 +227,9 @@ const Resources = () => {
         .rs-modal input { width: 100%; background: var(--cream); border: 1px solid var(--line); border-radius: 14px; padding: 11px 16px; color: var(--ink); font-size: 13px; font-family: 'Nunito', sans-serif; }
         .rs-payment-note { padding: 12px 14px; background: #E7F0EA; border-radius: 12px; margin: 14px 0; }
         .rs-payment-note p { font-size: 12.5px; color: var(--teal-d); line-height: 1.6; margin: 0; }
+        .rs-payment-box { padding: 14px 16px; background: var(--teal); border-radius: 14px; margin: 14px 0; }
+        .rs-payment-box .rs-payment-label { font-size: 11px; color: rgba(255,255,255,.75); margin-bottom: 4px; text-transform: uppercase; letter-spacing: .04em; font-family: 'Poppins', sans-serif; font-weight: 600; }
+        .rs-payment-box .rs-payment-value { font-size: 14.5px; color: #fff; font-weight: 700; font-family: 'Poppins', sans-serif; }
         .rs-alert { border-radius: 10px; padding: 10px 14px; font-size: 12.5px; margin-bottom: 14px; }
         .rs-alert.success { background: #E1EEE9; color: var(--teal-d); }
         .rs-alert.error { background: #F5E6EA; color: var(--rose-d); }
@@ -438,7 +444,7 @@ const Resources = () => {
               </div>
             </div>
 
-            {requestForm.listing_type === 'borrow' && (
+            {requestForm.listing_type === 'borrow' && !requestMsg && (
               <>
                 <label className="rs-field-label">How many days? (max 15)</label>
                 <input
@@ -457,13 +463,22 @@ const Resources = () => {
               </>
             )}
 
-            <div className="rs-payment-note">
-              <p>Pay the seller directly via JazzCash,EasyPaisa or bank transfer, then show them your PIN to confirm.</p>
-            </div>
+            {!requestMsg && (
+              <div className="rs-payment-note">
+                <p>Pay the seller directly via JazzCash or bank transfer, then show them your PIN to confirm.</p>
+              </div>
+            )}
 
             {requestMsg && (
               <div className={`rs-alert ${requestMsg.includes('failed') || requestMsg.includes('error') ? 'error' : 'success'}`}>
                 {requestMsg}
+              </div>
+            )}
+
+            {requestMsg && paymentInfo && (
+              <div className="rs-payment-box">
+                <div className="rs-payment-label">Pay the seller here</div>
+                <div className="rs-payment-value">{paymentInfo}</div>
               </div>
             )}
 

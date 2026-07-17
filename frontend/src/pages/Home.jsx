@@ -198,7 +198,7 @@ const Home = () => {
           {/* Welcome */}
           <div className="hm-welcome">
             <h1 className="hm-h1">Welcome back, {firstName}</h1>
-            <p className="hm-subhead">Here's what's happening in your campus community today.</p>
+            <p className="hm-subhead">Here is what's happening in your campus community today.</p>
           </div>
 
           {/* Table with books */}

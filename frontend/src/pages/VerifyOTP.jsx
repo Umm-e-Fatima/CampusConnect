@@ -18,7 +18,6 @@ const VerifyOTP = () => {
 
   useEffect(() => {
     if (!email) {
-      // No email in state means this page was opened directly
       setError('No email found. Please register or log in again.');
     }
   }, [email]);
@@ -106,14 +105,14 @@ const VerifyOTP = () => {
       <style>{`
         @import url('https://fonts.googleapis.com/css2?family=Poppins:wght@500;600;700;800&family=Nunito:wght@400;600;700&display=swap');
         * { box-sizing: border-box; margin: 0; padding: 0; }
-        .otp-page { min-height: 100vh; display: flex; flex-direction: column; background: #FBF3E5; font-family: 'Nunito', sans-serif; color: #3A3630; }
+        .otp-page { height: 100vh; overflow: hidden; display: flex; flex-direction: column; background: #FBF3E5; font-family: 'Nunito', sans-serif; color: #3A3630; }
         .otp-nav { display: flex; align-items: center; padding: 14px 40px; flex-shrink: 0; }
         .otp-brand { display: flex; align-items: center; gap: 10px; }
         .otp-brand-mark { width: 30px; height: 30px; border-radius: 8px; background: #1D6F68; color: #fff; display: flex; align-items: center; justify-content: center; font-family: 'Poppins', sans-serif; font-weight: 700; font-size: 12px; }
         .otp-brand-name { font-family: 'Poppins', sans-serif; font-weight: 700; font-size: 14px; color: #134F4A; }
         .otp-brand-tag { font-size: 11px; color: #8A8172; margin-left: 2px; }
-        .otp-hero { flex: 1; display: grid; grid-template-columns: 1fr 1fr; align-items: center; gap: 20px; padding-left: 56px; min-height: 0; }
-        .otp-left { max-width: 440px; }
+        .otp-hero { flex: 1; display: grid; grid-template-columns: 1fr 1fr; min-height: 0; overflow: hidden; }
+        .otp-left { display: flex; flex-direction: column; justify-content: center; padding: 20px 48px 28px 56px; }
         .otp-h1 { font-family: 'Poppins', sans-serif; font-weight: 700; font-size: 34px; color: #134F4A; line-height: 1.15; margin-bottom: 10px; letter-spacing: -0.01em; }
         .otp-sub { font-size: 13px; color: #8A8172; line-height: 1.65; margin-bottom: 22px; max-width: 380px; }
         .otp-sub b { color: #3A3630; }
@@ -131,8 +130,8 @@ const VerifyOTP = () => {
         .otp-resend button:disabled { opacity: 0.6; cursor: not-allowed; }
         .otp-back { margin-top: 12px; font-size: 12.5px; }
         .otp-back a { color: #1D6F68; text-decoration: underline; text-underline-offset: 3px; }
-        .otp-right { position: relative; height: 100%; min-height: 480px; overflow: hidden; }
-        .otp-right svg { display: block; width: 100%; height: 100%; }
+        .otp-right { position: relative; overflow: hidden; }
+        .otp-right svg { position: absolute; top: 0; left: 0; width: 100%; height: 100%; }
       `}</style>
 
       <div className="otp-page">
@@ -192,37 +191,35 @@ const VerifyOTP = () => {
               </button>
             </div>
             <div className="otp-back">
-              <Link to="/login">← Back to login</Link>
+              <Link to="/login">Back to login</Link>
             </div>
           </div>
 
           {/* Right — wave image */}
           <div className="otp-right">
-            <svg viewBox="0 0 600 860" preserveAspectRatio="xMidYMid slice">
+            <svg viewBox="0 0 600 900" preserveAspectRatio="xMidYMid slice">
               <defs>
                 <clipPath id="otpWave">
                   <path d="
-                    M600,0 L600,860
-                    C480,860 340,860 340,800
-                    C340,740 440,740 440,680
-                    C440,620 300,620 300,560
-                    C300,500 400,500 400,440
-                    C400,380 260,380 260,320
-                    C260,260 380,260 380,200
-                    C380,140 260,140 260,80
-                    C260,20 460,20 600,0 Z
+                    M0,0 L600,0 L600,900 L0,900
+                    C80,900 180,900 180,840
+                    C180,780 80,780 80,720
+                    C80,660 180,660 180,600
+                    C180,540 60,540 60,480
+                    C60,420 180,420 180,360
+                    C180,300 60,300 60,240
+                    C60,180 180,180 180,120
+                    C180,60 80,60 0,0 Z
                   " />
                 </clipPath>
               </defs>
               <image
                 href="/library.jpg"
                 x="0" y="0"
-                width="600" height="860"
+                width="600" height="900"
                 preserveAspectRatio="xMidYMid slice"
                 clipPath="url(#otpWave)"
               />
-              <circle cx="300" cy="560" r="30" fill="#FBF3E5" />
-              <circle cx="380" cy="260" r="26" fill="#FBF3E5" />
             </svg>
           </div>
 

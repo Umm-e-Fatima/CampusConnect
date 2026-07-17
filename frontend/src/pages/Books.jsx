@@ -25,12 +25,13 @@ const Books = () => {
   const [confirmResult, setConfirmResult] = useState(null);
   const [requestingBook, setRequestingBook] = useState(null);
   const [borrowDays, setBorrowDays]   = useState('');
+  const [deleteConfirmId, setDeleteConfirmId] = useState(null);
   const [isOnline, setIsOnline]       = useState(navigator.onLine);
 
   const [createForm, setCreateForm] = useState({
     title: '', author: '', course_code: '', condition: 'good',
     listing_type: 'gift', price: '', borrow_days_limit: '',
-    women_only: false, dropoff_location: '', contact_info: '',
+    women_only: false, dropoff_location: '', contact_info: '', payment_info: '',
   });
 
   const { user, logout } = useAuth();
@@ -92,6 +93,7 @@ const Books = () => {
       setPinInfo({
         total_price: res.data.total_price,
         dropoff_location: res.data.dropoff_location,
+        payment_info: res.data.payment_info,
       });
       fetchBooks();
     } catch (err) {
@@ -114,6 +116,7 @@ const Books = () => {
         due_date: res.data.due_date,
         total_price: res.data.total_price,
         dropoff_location: res.data.dropoff_location,
+        payment_info: res.data.payment_info,
       });
       setRequestingBook(null);
       setBorrowDays('');
@@ -144,6 +147,7 @@ const Books = () => {
         ...createForm,
         course_code: createForm.course_code.trim().toUpperCase() || null,
         price: createForm.listing_type !== 'gift' ? parseFloat(createForm.price) : null,
+        payment_info: createForm.listing_type !== 'gift' ? createForm.payment_info.trim() || null : null,
         borrow_days_limit: createForm.listing_type === 'borrow'
           ? parseInt(createForm.borrow_days_limit) : null,
       });
@@ -151,11 +155,22 @@ const Books = () => {
       setCreateForm({
         title: '', author: '', course_code: '', condition: 'good',
         listing_type: 'gift', price: '', borrow_days_limit: '',
-        women_only: false, dropoff_location: '', contact_info: '',
+        women_only: false, dropoff_location: '', contact_info: '', payment_info: '',
       });
       fetchBooks();
     } catch (err) {
       setError(err.response?.data?.error || 'Failed to create listing');
+    }
+  };
+
+  const handleDelete = async () => {
+    try {
+      await api.delete(`/books/${deleteConfirmId}`);
+      setDeleteConfirmId(null);
+      fetchBooks();
+    } catch (err) {
+      setError(err.response?.data?.error || 'Failed to remove listing');
+      setDeleteConfirmId(null);
     }
   };
 
@@ -170,17 +185,13 @@ const Books = () => {
     return 'rose';
   };
 
-  // Chunk books into shelf rows of 4
-  const shelfRows = [];
-  for (let i = 0; i < books.length; i += 4) shelfRows.push(books.slice(i, i + 4));
-
   const totalPages = Math.max(1, Math.ceil(books.length / PAGE_SIZE));
   const pagedBooks = books.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE);
   const pagedShelfRows = [];
   for (let i = 0; i < pagedBooks.length; i += 4) pagedShelfRows.push(pagedBooks.slice(i, i + 4));
 
   const previewTag = createForm.listing_type === 'gift'
-    ? 'Gift — Free'
+    ? 'Gift: Free'
     : createForm.listing_type === 'borrow'
       ? `Borrow · Rs.${createForm.price || '0'}/day`
       : `Paid · Rs.${createForm.price || '0'}`;
@@ -243,6 +254,9 @@ const Books = () => {
         .bk-pin-code { font-size: 44px; font-weight: 700; color: #fff; letter-spacing: 14px; margin-bottom: 6px; font-family: 'Poppins', sans-serif; }
         .bk-pin-meta { font-size: 12px; color: rgba(255,255,255,.7); }
         .bk-dropoff-badge { display: inline-flex; align-items: center; gap: 5px; margin-top: 10px; padding: 5px 12px; background: rgba(255,255,255,.15); border-radius: 20px; font-size: 12px; color: #fff; }
+        .bk-payment-badge { display: block; margin-top: 12px; padding: 10px 16px; background: rgba(255,255,255,.15); border-radius: 12px; }
+        .bk-payment-badge-label { font-size: 10.5px; color: rgba(255,255,255,.7); text-transform: uppercase; letter-spacing: .04em; margin-bottom: 3px; font-family: 'Poppins', sans-serif; font-weight: 600; }
+        .bk-payment-badge-value { font-size: 14px; color: #fff; font-weight: 700; font-family: 'Poppins', sans-serif; }
 
         .bk-empty { text-align: center; padding: 48px 24px; color: var(--inks); }
         .bk-empty h3 { font-family: 'Poppins', sans-serif; color: var(--teal-d); font-size: 15px; margin-bottom: 6px; }
@@ -258,6 +272,7 @@ const Books = () => {
         .bk-cupboard-legs { display: flex; justify-content: space-between; padding: 0 26px; }
         .bk-leg { width: 14px; height: 16px; background: #5C4326; border-radius: 0 0 4px 4px; }
 
+        .bk-book-wrap { position: relative; display: flex; flex-direction: column; align-items: stretch; }
         .bk-book { width: 150px; min-height: 190px; border-radius: 5px 12px 12px 5px; position: relative; padding: 16px 14px; color: #fff; display: flex; flex-direction: column; justify-content: space-between; box-shadow: 0 10px 16px rgba(50,25,8,.25), 0 2px 0 rgba(255,255,255,.15) inset; border: none; text-align: left; font-family: inherit; }
         .bk-book::before { content: ""; position: absolute; left: 0; top: 0; bottom: 0; width: 12px; background: rgba(0,0,0,.18); border-radius: 5px 0 0 5px; }
         .bk-book::after { content: ""; position: absolute; right: -3px; top: 5px; bottom: 5px; width: 6px; background: repeating-linear-gradient(180deg,#FBF3E5 0 2px,#EFE3CC 2px 4px); border-radius: 0 3px 3px 0; }
@@ -267,6 +282,8 @@ const Books = () => {
         .bk-book .bk-course { font-family: 'Poppins', sans-serif; font-size: 8.5px; opacity: .8; letter-spacing: .03em; margin-bottom: 8px; }
         .bk-book .bk-req-btn { font-family: 'Poppins', sans-serif; font-size: 11px; font-weight: 700; background: #fff; color: var(--ink); border: none; padding: 7px 0; border-radius: 999px; cursor: pointer; text-align: center; width: 100%; }
         .bk-book .bk-women { position: absolute; top: -8px; right: 6px; background: #F6E2E9; color: var(--rose-d); font-family: 'Poppins', sans-serif; font-size: 8px; font-weight: 700; padding: 3px 7px; border-radius: 999px; box-shadow: 0 3px 6px rgba(0,0,0,.15); }
+        .bk-shelf-remove { font-family: 'Poppins', sans-serif; font-size: 10px; font-weight: 700; color: #fff; background: rgba(0,0,0,.28); border: none; cursor: pointer; padding: 5px 0; text-align: center; width: 150px; margin-top: 4px; border-radius: 6px; }
+        .bk-shelf-remove:hover { background: rgba(0,0,0,.42); }
 
         .bk-b0 { background: linear-gradient(160deg,var(--teal),var(--teal-d)); }
         .bk-b1 { background: linear-gradient(160deg,var(--olive),var(--olive-d)); }
@@ -290,8 +307,10 @@ const Books = () => {
         .bk-li-tag.orange { background: #FBEAD5; color: var(--orange-d); }
         .bk-li-tag.teal { background: #E1EEE9; color: var(--teal-d); }
         .bk-li-tag.rose { background: #F6E2E9; color: var(--rose-d); }
-        .bk-btn-outline { font-family: 'Poppins', sans-serif; font-size: 12.5px; font-weight: 700; background: var(--orange); color: #fff; padding: 10px 20px; border-radius: 999px; border: none; cursor: pointer; box-shadow: 0 5px 12px rgba(226,144,60,.28); flex-shrink: 0; }
+        .bk-li-actions { display: flex; flex-direction: column; align-items: flex-end; gap: 6px; flex-shrink: 0; }
+        .bk-btn-outline { font-family: 'Poppins', sans-serif; font-size: 12.5px; font-weight: 700; background: var(--orange); color: #fff; padding: 10px 20px; border-radius: 999px; border: none; cursor: pointer; box-shadow: 0 5px 12px rgba(226,144,60,.28); }
         .bk-btn-outline:hover { background: var(--orange-d); }
+        .bk-remove-link { font-family: 'Poppins', sans-serif; font-size: 11px; font-weight: 700; color: var(--rose-d); background: none; border: none; cursor: pointer; padding: 0; }
 
         /* Confirm PIN tab */
         .bk-card { background: var(--card); border: 1px solid var(--line); border-radius: 32px 12px 32px 12px; padding: 30px; margin-bottom: 28px; max-width: 520px; }
@@ -331,6 +350,10 @@ const Books = () => {
         .bk-book-preview .bk-tag { font-family: 'Poppins', sans-serif; font-size: 8px; font-weight: 700; background: rgba(255,255,255,.22); padding: 2px 6px; border-radius: 999px; width: fit-content; }
         .bk-book-preview h5 { font-family: 'Poppins', sans-serif; font-weight: 700; font-size: 11.5px; margin: 8px 0 2px; line-height: 1.2; }
         .bk-book-preview .bk-a { font-size: 9px; opacity: .85; }
+
+        .bk-modal-btn-row { display: flex; gap: 10px; margin-top: 22px; }
+        .bk-btn-danger { background: var(--rose-d); color: #fff; font-family: 'Poppins', sans-serif; font-weight: 600; font-size: 13px; padding: 12px 0; border-radius: 999px; border: none; cursor: pointer; flex: 1; }
+        .bk-btn-ghost { background: none; color: var(--ink); font-family: 'Poppins', sans-serif; font-weight: 600; font-size: 13px; padding: 12px 0; border-radius: 999px; border: 1px solid var(--line); cursor: pointer; flex: 1; }
       `}</style>
 
       <div className="bk-page">
@@ -409,7 +432,19 @@ const Books = () => {
                     {pinInfo?.total_price && ` · Total: ${pinInfo.total_price}`}
                   </p>
                   {pinInfo?.dropoff_location && (
-                    <div className="bk-dropoff-badge">Drop-off: {pinInfo.dropoff_location}</div>
+                    <div className="bk-dropoff-badge">
+                      <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#fff" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                        <path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/>
+                        <circle cx="12" cy="10" r="3"/>
+                      </svg>
+                      Drop-off: {pinInfo.dropoff_location}
+                    </div>
+                  )}
+                  {pinInfo?.payment_info && (
+                    <div className="bk-payment-badge">
+                      <div className="bk-payment-badge-label">Pay the seller here</div>
+                      <div className="bk-payment-badge-value">{pinInfo.payment_info}</div>
+                    </div>
                   )}
                 </div>
               )}
@@ -424,8 +459,8 @@ const Books = () => {
                   }
                 </div>
                 <div className="bk-view-toggle">
-                  <button className={viewMode === 'shelf' ? 'active' : ''} onClick={() => setViewMode('shelf')}>🗄 Shelf view</button>
-                  <button className={viewMode === 'list' ? 'active' : ''} onClick={() => setViewMode('list')}>☰ List view</button>
+                  <button className={viewMode === 'shelf' ? 'active' : ''} onClick={() => setViewMode('shelf')}>Shelf view</button>
+                  <button className={viewMode === 'list' ? 'active' : ''} onClick={() => setViewMode('list')}>List view</button>
                 </div>
               </div>
 
@@ -448,19 +483,27 @@ const Books = () => {
                           <div className="bk-shelf-books">
                             {row.map((b, bi) => {
                               const colorClass = `bk-b${(ri * 4 + bi) % 4}`;
+                              const isOwner = b.seller_id === user?.id;
                               return (
-                                <button key={b.id} className={`bk-book ${colorClass}`} type="button">
-                                  {b.women_only && <div className="bk-women">Women Only</div>}
-                                  <div className="bk-top-tag">{listingTag(b)}</div>
-                                  <div>
-                                    <h4>{b.title}</h4>
-                                    {b.author && <div className="bk-author">by {b.author}</div>}
-                                    <div className="bk-course">
-                                      {b.course_code ? `${b.course_code} · ` : ''}{b.condition} condition
+                                <div className="bk-book-wrap" key={b.id}>
+                                  <button className={`bk-book ${colorClass}`} type="button">
+                                    {b.women_only && <div className="bk-women">Women Only</div>}
+                                    <div className="bk-top-tag">{listingTag(b)}</div>
+                                    <div>
+                                      <h4>{b.title}</h4>
+                                      {b.author && <div className="bk-author">by {b.author}</div>}
+                                      <div className="bk-course">
+                                        {b.course_code ? `${b.course_code} · ` : ''}{b.condition} condition
+                                      </div>
                                     </div>
-                                  </div>
-                                  <button className="bk-req-btn" onClick={() => handleRequest(b)}>Request</button>
-                                </button>
+                                    <button className="bk-req-btn" onClick={() => handleRequest(b)}>Request</button>
+                                  </button>
+                                  {isOwner && (
+                                    <button className="bk-shelf-remove" onClick={() => setDeleteConfirmId(b.id)}>
+                                      Remove listing
+                                    </button>
+                                  )}
+                                </div>
                               );
                             })}
                           </div>
@@ -487,24 +530,32 @@ const Books = () => {
               {/* List view */}
               {!loading && books.length > 0 && viewMode === 'list' && (
                 <div>
-                  {books.map((b, i) => (
-                    <div key={b.id} className="bk-list-item">
-                      <div className="bk-li-left">
-                        <div className="bk-spine-chip" style={{ background: SPINE_COLORS[i % 4] }}></div>
-                        <div className="bk-li-text">
-                          <h4>{b.title}</h4>
-                          <div className="bk-meta">
-                            {b.author && `by ${b.author} · `}{b.course_code ? `${b.course_code} · ` : ''}{b.condition} condition
-                          </div>
-                          <div className="bk-li-tags">
-                            <span className={`bk-li-tag ${listingTagClass(b)}`}>{listingTag(b)}</span>
-                            {b.women_only && <span className="bk-li-tag rose">Women Only</span>}
+                  {books.map((b, i) => {
+                    const isOwner = b.seller_id === user?.id;
+                    return (
+                      <div key={b.id} className="bk-list-item">
+                        <div className="bk-li-left">
+                          <div className="bk-spine-chip" style={{ background: SPINE_COLORS[i % 4] }}></div>
+                          <div className="bk-li-text">
+                            <h4>{b.title}</h4>
+                            <div className="bk-meta">
+                              {b.author && `by ${b.author} · `}{b.course_code ? `${b.course_code} · ` : ''}{b.condition} condition
+                            </div>
+                            <div className="bk-li-tags">
+                              <span className={`bk-li-tag ${listingTagClass(b)}`}>{listingTag(b)}</span>
+                              {b.women_only && <span className="bk-li-tag rose">Women Only</span>}
+                            </div>
                           </div>
                         </div>
+                        <div className="bk-li-actions">
+                          <button className="bk-btn-outline" onClick={() => handleRequest(b)}>Request</button>
+                          {isOwner && (
+                            <button className="bk-remove-link" onClick={() => setDeleteConfirmId(b.id)}>Remove</button>
+                          )}
+                        </div>
                       </div>
-                      <button className="bk-btn-outline" onClick={() => handleRequest(b)}>Request</button>
-                    </div>
-                  ))}
+                    );
+                  })}
                 </div>
               )}
             </>
@@ -531,7 +582,7 @@ const Books = () => {
                     <div className="bk-contact-row">Drop-off: <strong>{confirmResult.dropoff_location}</strong></div>
                   )}
                   {confirmResult.contact_info && (
-                    <div className="bk-contact-row"> Contact: <strong>{confirmResult.contact_info}</strong></div>
+                    <div className="bk-contact-row">Contact: <strong>{confirmResult.contact_info}</strong></div>
                   )}
                   {!confirmResult.contact_info && !confirmResult.dropoff_location && (
                     <p style={{ fontSize: '13px', color: 'var(--inks)' }}>
@@ -621,9 +672,9 @@ const Books = () => {
                     value={createForm.listing_type}
                     onChange={(e) => setCreateForm({ ...createForm, listing_type: e.target.value })}
                   >
-                    <option value="gift">Gift:Free</option>
-                    <option value="borrow">Borrow:Per day</option>
-                    <option value="paid">Buy:Fixed price</option>
+                    <option value="gift">Gift: Free</option>
+                    <option value="borrow">Borrow: Per day</option>
+                    <option value="paid">Buy: Fixed price</option>
                   </select>
                 </div>
               </div>
@@ -639,6 +690,14 @@ const Books = () => {
                     min="1"
                     required
                   />
+
+                  <label>Payment Info</label>
+                  <input
+                    placeholder="e.g. JazzCash: 03XX-XXXXXXX or bank account details"
+                    value={createForm.payment_info}
+                    onChange={(e) => setCreateForm({ ...createForm, payment_info: e.target.value })}
+                  />
+                  <div className="bk-hint">Shown to the buyer as soon as they request,this is how they will pay you</div>
                 </>
               )}
 
@@ -666,7 +725,7 @@ const Books = () => {
               <div className="bk-hint">Where should the buyer meet you?</div>
 
               <label>
-                Contact Number <span style={{ fontWeight: 400, color: 'var(--inks)' }}>,hidden until a request is confirmed</span>
+                Contact Number <span style={{ fontWeight: 400, color: 'var(--inks)' }}>hidden until a request is confirmed</span>
               </label>
               <input
                 placeholder="e.g. 03XX-XXXXXXX"
@@ -676,7 +735,7 @@ const Books = () => {
 
               <button
                 type="button"
-                className={`bk-toggle-row`}
+                className="bk-toggle-row"
                 style={{ background: 'none', border: 'none', padding: 0 }}
                 onClick={() => setCreateForm({ ...createForm, women_only: !createForm.women_only })}
               >
@@ -691,7 +750,13 @@ const Books = () => {
                   <h5>{createForm.title || 'Untitled listing'}</h5>
                   {createForm.author && <div className="bk-a">by {createForm.author}</div>}
                   {createForm.dropoff_location && (
-                    <div className="bk-a" style={{ marginTop: '3px' }}>📍 {createForm.dropoff_location}</div>
+                    <div className="bk-a" style={{ marginTop: '3px', display: 'flex', alignItems: 'center', gap: '3px' }}>
+                      <svg width="9" height="9" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                        <path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/>
+                        <circle cx="12" cy="10" r="3"/>
+                      </svg>
+                      {createForm.dropoff_location}
+                    </div>
                   )}
                 </div>
               </div>
@@ -714,7 +779,7 @@ const Books = () => {
               <strong>{requestingBook.title}</strong> · Rs. {requestingBook.price}/day
             </p>
 
-            <label className="bk-field-label">Borrow duration (1–15 days)</label>
+            <label className="bk-field-label">Borrow duration (1-15 days)</label>
             <input
               type="number"
               min="1"
@@ -734,6 +799,25 @@ const Books = () => {
             <button className="bk-btn-primary" style={{ width: '100%' }} onClick={handleBorrowRequest}>
               Confirm Request
             </button>
+          </div>
+        </div>
+      )}
+
+      {/* Delete Confirm Modal */}
+      {deleteConfirmId && (
+        <div className="bk-overlay">
+          <div className="bk-modal" style={{ width: '420px' }}>
+            <div className="bk-modal-head">
+              <h2>Remove Listing</h2>
+              <button className="bk-close-btn" onClick={() => setDeleteConfirmId(null)}>Close</button>
+            </div>
+            <p style={{ fontSize: '13px', color: 'var(--inks)', margin: '10px 0 0', lineHeight: '1.6' }}>
+              Are you sure you want to remove this listing? It will no longer be visible to other students.
+            </p>
+            <div className="bk-modal-btn-row">
+              <button className="bk-btn-danger" onClick={handleDelete}>Yes, Remove</button>
+              <button className="bk-btn-ghost" onClick={() => setDeleteConfirmId(null)}>Cancel</button>
+            </div>
           </div>
         </div>
       )}
