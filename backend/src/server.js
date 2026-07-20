@@ -4,6 +4,12 @@ const cors = require('cors');
 const helmet = require('helmet');
 const rateLimit = require('express-rate-limit');
 
+const cors = require('cors');
+app.use(cors({
+  origin: 'https://campus-connect-ashy-six.vercel.app', // replace with your actual Vercel URL
+  credentials: true
+}));
+
 const app = express();
 app.set('trust proxy', 1); // tells Express to trust Vercel's forwarded headers
 //  Security 
