@@ -9,8 +9,13 @@ const pool = new Pool({
   password: process.env.DB_PASSWORD,
   max: 10,
   idleTimeoutMillis: 30000,
-  connectionTimeoutMillis: 2000,
+  connectionTimeoutMillis: 10000,
+  ssl: {
+  rejectUnauthorized: false,
+},
 });
+
+
 
 pool.on('connect', () => console.log('Connected to PostgreSQL'));
 pool.on('error', (err) => { console.error('DB error:', err); process.exit(-1); });
