@@ -71,4 +71,11 @@ app.use((err, req, res, next) => {
 });
 
 const PORT = process.env.PORT || 5000;
-app.listen(PORT, () => console.log(`CampusConnect API → http://localhost:${PORT}`));
+
+// Only start a traditional server when running locally.
+// On Vercel, the app is invoked as a serverless function instead.
+if (!process.env.VERCEL) {
+  app.listen(PORT, () => console.log(`CampusConnect API → http://localhost:${PORT}`));
+}
+
+module.exports = app;
