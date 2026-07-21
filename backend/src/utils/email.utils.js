@@ -1,16 +1,18 @@
-const { Resend } = require('resend');
-const resend = new Resend(process.env.RESEND_API_KEY);
+const brevo = require('@getbrevo/brevo');
+
+const apiInstance = new brevo.TransactionalEmailsApi();
+apiInstance.setApiKey(brevo.TransactionalEmailsApiApiKeys.apiKey, process.env.BREVO_API_KEY);
 
 const FONT_LINK = `<link href="https://fonts.googleapis.com/css2?family=Poppins:wght@600;700;800&family=Nunito:wght@400;600;700&display=swap" rel="stylesheet">`;
 
-const FROM_ADDRESS = process.env.EMAIL_FROM || 'CampusConnect <onboarding@resend.dev>';
+const SENDER = { email: process.env.EMAIL_FROM, name: 'CampusConnect' };
 
 const sendOTPEmail = async (toEmail, otpCode) => {
-  await resend.emails.send({
-    from: FROM_ADDRESS,
-    to: toEmail,
+  await apiInstance.sendTransacEmail({
+    sender: SENDER,
+    to: [{ email: toEmail }],
     subject: 'Your CampusConnect Verification Code',
-    html: `
+    htmlContent: `
       <!DOCTYPE html>
       <html>
       <head>${FONT_LINK}</head>
@@ -90,11 +92,11 @@ const sendOTPEmail = async (toEmail, otpCode) => {
 };
 
 const sendPasswordResetEmail = async (toEmail, otpCode) => {
-  await resend.emails.send({
-    from: FROM_ADDRESS,
-    to: toEmail,
+  await apiInstance.sendTransacEmail({
+    sender: SENDER,
+    to: [{ email: toEmail }],
     subject: 'Reset Your CampusConnect Password',
-    html: `
+    htmlContent: `
       <!DOCTYPE html>
       <html>
       <head>${FONT_LINK}</head>
@@ -175,11 +177,11 @@ const sendPasswordResetEmail = async (toEmail, otpCode) => {
 };
 
 const sendSellerNotificationEmail = async (toEmail, title, body) => {
-  await resend.emails.send({
-    from: FROM_ADDRESS,
-    to: toEmail,
+  await apiInstance.sendTransacEmail({
+    sender: SENDER,
+    to: [{ email: toEmail }],
     subject: title,
-    html: `
+    htmlContent: `
       <!DOCTYPE html>
       <html>
       <head>${FONT_LINK}</head>
