@@ -1,4 +1,9 @@
-const brevo = require('@getbrevo/brevo');
+const { BrevoClient } = require('@getbrevo/brevo');
+
+const brevo = new BrevoClient({
+  apiKey: process.env.BREVO_API_KEY,
+});
+
 
 const apiInstance = new brevo.TransactionalEmailsApi();
 apiInstance.setApiKey(brevo.TransactionalEmailsApiApiKeys.apiKey, process.env.BREVO_API_KEY);
@@ -8,7 +13,7 @@ const FONT_LINK = `<link href="https://fonts.googleapis.com/css2?family=Poppins:
 const SENDER = { email: process.env.EMAIL_FROM, name: 'CampusConnect' };
 
 const sendOTPEmail = async (toEmail, otpCode) => {
-  await apiInstance.sendTransacEmail({
+  await brevo.transactionalEmails.sendTransacEmail({
     sender: SENDER,
     to: [{ email: toEmail }],
     subject: 'Your CampusConnect Verification Code',
@@ -92,7 +97,7 @@ const sendOTPEmail = async (toEmail, otpCode) => {
 };
 
 const sendPasswordResetEmail = async (toEmail, otpCode) => {
-  await apiInstance.sendTransacEmail({
+  await brevo.transactionalEmails.sendTransacEmail({
     sender: SENDER,
     to: [{ email: toEmail }],
     subject: 'Reset Your CampusConnect Password',
@@ -177,7 +182,7 @@ const sendPasswordResetEmail = async (toEmail, otpCode) => {
 };
 
 const sendSellerNotificationEmail = async (toEmail, title, body) => {
-  await apiInstance.sendTransacEmail({
+  await brevo.transactionalEmails.sendTransacEmail({
     sender: SENDER,
     to: [{ email: toEmail }],
     subject: title,
