@@ -5,9 +5,6 @@ const brevo = new BrevoClient({
 });
 
 
-const apiInstance = new brevo.TransactionalEmailsApi();
-apiInstance.setApiKey(brevo.TransactionalEmailsApiApiKeys.apiKey, process.env.BREVO_API_KEY);
-
 const FONT_LINK = `<link href="https://fonts.googleapis.com/css2?family=Poppins:wght@600;700;800&family=Nunito:wght@400;600;700&display=swap" rel="stylesheet">`;
 
 const SENDER = { email: process.env.EMAIL_FROM, name: 'CampusConnect' };
