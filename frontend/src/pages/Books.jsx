@@ -26,6 +26,8 @@ const Books = () => {
   const [requestingBook, setRequestingBook] = useState(null);
   const [borrowDays, setBorrowDays]   = useState('');
   const [deleteConfirmId, setDeleteConfirmId] = useState(null);
+  const [pendingRequests, setPendingRequests] = useState([]);
+  const [pendingLoading, setPendingLoading]   = useState(true);
   const [isOnline, setIsOnline]       = useState(navigator.onLine);
 
   const [createForm, setCreateForm] = useState({
@@ -77,7 +79,23 @@ const Books = () => {
     }
   };
 
+  const fetchPendingRequests = async () => {
+    setPendingLoading(true);
+    try {
+      const res = await api.get('/books/seller/pending');
+      setPendingRequests(res.data);
+    } catch (_) {
+      // silent — non-critical list
+    } finally {
+      setPendingLoading(false);
+    }
+  };
+
   useEffect(() => { fetchBooks(); }, [filterType, filterCode]); // eslint-disable-line
+
+  useEffect(() => {
+    if (activeTab === 'confirm') fetchPendingRequests();
+  }, [activeTab]);
 
   const handleRequest = async (book) => {
     setError('');
@@ -91,6 +109,7 @@ const Books = () => {
       setPin(res.data.pin);
       setPinExpiry(res.data.expires_at);
       setPinInfo({
+        request_id: res.data.request_id,
         total_price: res.data.total_price,
         dropoff_location: res.data.dropoff_location,
         payment_info: res.data.payment_info,
@@ -113,6 +132,7 @@ const Books = () => {
       setPin(res.data.pin);
       setPinExpiry(res.data.expires_at);
       setPinInfo({
+        request_id: res.data.request_id,
         due_date: res.data.due_date,
         total_price: res.data.total_price,
         dropoff_location: res.data.dropoff_location,
@@ -133,6 +153,7 @@ const Books = () => {
       setConfirmMsg('Exchange completed successfully.');
       setConfirmResult(res.data);
       setConfirmData({ request_id: '', pin: '' });
+      fetchPendingRequests();
     } catch (err) {
       setConfirmMsg(err.response?.data?.error || 'PIN confirmation failed');
       setConfirmResult(null);
@@ -174,8 +195,12 @@ const Books = () => {
     }
   };
 
+  const useRequestId = (id) => {
+    setConfirmData({ ...confirmData, request_id: id });
+  };
+
   const listingTag = (b) => {
-    if (b.listing_type === 'gift') return 'Gift:Free';
+    if (b.listing_type === 'gift') return 'Gift — Free';
     if (b.listing_type === 'borrow') return `Borrow · Rs.${b.price}/day`;
     return `Paid · Rs.${b.price}`;
   };
@@ -191,7 +216,7 @@ const Books = () => {
   for (let i = 0; i < pagedBooks.length; i += 4) pagedShelfRows.push(pagedBooks.slice(i, i + 4));
 
   const previewTag = createForm.listing_type === 'gift'
-    ? 'Gift: Free'
+    ? 'Gift — Free'
     : createForm.listing_type === 'borrow'
       ? `Borrow · Rs.${createForm.price || '0'}/day`
       : `Paid · Rs.${createForm.price || '0'}`;
@@ -253,6 +278,8 @@ const Books = () => {
         .bk-pin-label { font-size: 12px; color: rgba(255,255,255,.75); margin-bottom: 8px; }
         .bk-pin-code { font-size: 44px; font-weight: 700; color: #fff; letter-spacing: 14px; margin-bottom: 6px; font-family: 'Poppins', sans-serif; }
         .bk-pin-meta { font-size: 12px; color: rgba(255,255,255,.7); }
+        .bk-pin-reqid { font-size: 12.5px; color: #fff; margin-top: 6px; font-family: 'Poppins', sans-serif; font-weight: 600; }
+        .bk-pin-reqid code { background: rgba(255,255,255,.18); padding: 2px 8px; border-radius: 6px; font-family: monospace; margin-left: 4px; }
         .bk-dropoff-badge { display: inline-flex; align-items: center; gap: 5px; margin-top: 10px; padding: 5px 12px; background: rgba(255,255,255,.15); border-radius: 20px; font-size: 12px; color: #fff; }
         .bk-payment-badge { display: block; margin-top: 12px; padding: 10px 16px; background: rgba(255,255,255,.15); border-radius: 12px; }
         .bk-payment-badge-label { font-size: 10.5px; color: rgba(255,255,255,.7); text-transform: uppercase; letter-spacing: .04em; margin-bottom: 3px; font-family: 'Poppins', sans-serif; font-weight: 600; }
@@ -326,6 +353,13 @@ const Books = () => {
         .bk-contact-reveal-title { font-size: 13px; font-weight: 700; color: var(--teal-d); font-family: 'Poppins', sans-serif; }
         .bk-contact-row { display: flex; align-items: center; gap: 8px; font-size: 13px; color: var(--ink); }
 
+        .bk-section-title { font-family: 'Poppins', sans-serif; font-weight: 700; font-size: 15px; color: var(--teal-d); margin: 0 0 14px; }
+        .bk-pending-item { background: var(--card); border: 1px solid var(--line); border-radius: 18px 6px 18px 6px; padding: 16px 20px; margin-bottom: 10px; max-width: 640px; display: flex; align-items: center; justify-content: space-between; gap: 14px; flex-wrap: wrap; cursor: pointer; transition: border-color 0.15s; }
+        .bk-pending-item:hover { border-color: var(--teal); }
+        .bk-pending-item h4 { font-family: 'Poppins', sans-serif; font-weight: 700; font-size: 14px; margin: 0 0 3px; }
+        .bk-pending-item .bk-meta { font-size: 12px; color: var(--inks); }
+        .bk-pending-reqid { font-family: 'Poppins', sans-serif; font-size: 11px; font-weight: 700; color: var(--teal-d); background: #E1EEE9; padding: 5px 10px; border-radius: 999px; white-space: nowrap; }
+
         /* Modals */
         .bk-overlay { position: fixed; inset: 0; background: rgba(58,54,48,.5); display: flex; align-items: center; justify-content: center; z-index: 100; padding: 20px; font-family: 'Nunito', sans-serif; }
         .bk-modal { width: 460px; max-width: 100%; max-height: 92vh; overflow-y: auto; background: var(--card); border: 1px solid var(--line); border-radius: 32px 12px 32px 12px; padding: 30px; box-shadow: 0 24px 50px rgba(40,25,10,.3); }
@@ -378,11 +412,11 @@ const Books = () => {
           {/* Page head */}
           <div className="bk-page-head">
             <div className="bk-page-head-left">
-              <button className="bk-back-btn" onClick={() => navigate('/home')}>Back</button>
+              <button className="bk-back-btn" onClick={() => navigate('/home')}>← Back</button>
               <h1 className="bk-h1">Book Exchange</h1>
             </div>
             <button className="bk-btn-primary" onClick={() => setShowCreateForm(true)}>
-              List a Book
+              + List a Book
             </button>
           </div>
 
@@ -424,13 +458,18 @@ const Books = () => {
 
               {pin && (
                 <div className="bk-pin-box">
-                  <p className="bk-pin-label">Your PIN,show this to the seller at the drop-off point</p>
+                  <p className="bk-pin-label">Your PIN — show this to the seller at the drop-off point</p>
                   <p className="bk-pin-code">{pin}</p>
                   <p className="bk-pin-meta">
                     Expires at {new Date(pinExpiry).toLocaleTimeString()}
                     {pinInfo?.due_date && ` · Return by ${new Date(pinInfo.due_date).toLocaleDateString()}`}
                     {pinInfo?.total_price && ` · Total: ${pinInfo.total_price}`}
                   </p>
+                  {pinInfo?.request_id && (
+                    <p className="bk-pin-reqid">
+                      Request ID: <code>{pinInfo.request_id}</code>
+                    </p>
+                  )}
                   {pinInfo?.dropoff_location && (
                     <div className="bk-dropoff-badge">
                       <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#fff" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
@@ -519,9 +558,9 @@ const Books = () => {
                       Shelf <b>{(page - 1) * PAGE_SIZE + 1}–{Math.min(page * PAGE_SIZE, books.length)}</b> of <b>{books.length}</b>
                     </div>
                     <div className="bk-pager">
-                      <button disabled={page <= 1} onClick={() => setPage((p) => p - 1)}>Previous</button>
+                      <button disabled={page <= 1} onClick={() => setPage((p) => p - 1)}>← Previous</button>
                       <span className="bk-page-label">Page {page} of {totalPages}</span>
-                      <button disabled={page >= totalPages} onClick={() => setPage((p) => p + 1)}>Next shelf</button>
+                      <button disabled={page >= totalPages} onClick={() => setPage((p) => p + 1)}>Next shelf →</button>
                     </div>
                   </div>
                 </>
@@ -563,55 +602,89 @@ const Books = () => {
 
           {/* Confirm PIN Tab */}
           {activeTab === 'confirm' && (
-            <div className="bk-card">
-              <h2>Confirm Book Exchange</h2>
-              <p className="bk-sub">
-                Once the buyer pays you outside the app, enter their request ID and PIN to confirm the exchange.
-              </p>
+            <>
+              <div className="bk-card">
+                <h2>Confirm Book Exchange</h2>
+                <p className="bk-sub">
+                  Once the buyer pays you outside the app, enter their request ID and PIN to confirm the exchange.
+                </p>
 
-              {confirmMsg && (
-                <div className={`bk-alert ${confirmMsg.includes('success') ? 'success' : 'error'}`}>
-                  {confirmMsg}
+                {confirmMsg && (
+                  <div className={`bk-alert ${confirmMsg.includes('success') ? 'success' : 'error'}`}>
+                    {confirmMsg}
+                  </div>
+                )}
+
+                {confirmResult && confirmMsg.includes('success') && (
+                  <div className="bk-contact-reveal">
+                    <div className="bk-contact-reveal-title">Exchange confirmed</div>
+                    {confirmResult.dropoff_location && (
+                      <div className="bk-contact-row">Drop-off: <strong>{confirmResult.dropoff_location}</strong></div>
+                    )}
+                    {confirmResult.contact_info && (
+                      <div className="bk-contact-row">Contact: <strong>{confirmResult.contact_info}</strong></div>
+                    )}
+                    {!confirmResult.contact_info && !confirmResult.dropoff_location && (
+                      <p style={{ fontSize: '13px', color: 'var(--inks)' }}>
+                        Seller did not add contact info. Coordinate at the campus drop-off point.
+                      </p>
+                    )}
+                  </div>
+                )}
+
+                <label className="bk-field-label">Request ID</label>
+                <input
+                  placeholder="Paste the request ID from buyer, or click a pending request below"
+                  value={confirmData.request_id}
+                  onChange={(e) => setConfirmData({ ...confirmData, request_id: e.target.value })}
+                />
+
+                <label className="bk-field-label">PIN</label>
+                <input
+                  className="bk-pin-input-field"
+                  placeholder="– – – –"
+                  maxLength={4}
+                  value={confirmData.pin}
+                  onChange={(e) => setConfirmData({ ...confirmData, pin: e.target.value })}
+                />
+
+                <button className="bk-btn-primary" style={{ width: '100%' }} onClick={handleConfirmPin}>
+                  Confirm Exchange
+                </button>
+              </div>
+
+              <div className="bk-section-title">
+                Pending requests ({pendingRequests.length})
+              </div>
+
+              {pendingLoading && (
+                <p style={{ color: 'var(--inks)', fontSize: '13px' }}>Loading...</p>
+              )}
+
+              {!pendingLoading && pendingRequests.length === 0 && (
+                <div className="bk-empty" style={{ maxWidth: '640px', textAlign: 'left', padding: '24px 26px' }}>
+                  <h3 style={{ marginBottom: '4px' }}>No pending requests</h3>
+                  <p style={{ marginBottom: 0 }}>When a student requests one of your books, it'll show up here with its Request ID — you'll still need the PIN from them in person.</p>
                 </div>
               )}
 
-              {confirmResult && confirmMsg.includes('success') && (
-                <div className="bk-contact-reveal">
-                  <div className="bk-contact-reveal-title">Exchange confirmed</div>
-                  {confirmResult.dropoff_location && (
-                    <div className="bk-contact-row">Drop-off: <strong>{confirmResult.dropoff_location}</strong></div>
-                  )}
-                  {confirmResult.contact_info && (
-                    <div className="bk-contact-row">Contact: <strong>{confirmResult.contact_info}</strong></div>
-                  )}
-                  {!confirmResult.contact_info && !confirmResult.dropoff_location && (
-                    <p style={{ fontSize: '13px', color: 'var(--inks)' }}>
-                      Seller did not add contact info. Coordinate at the campus drop-off point.
-                    </p>
-                  )}
+              {!pendingLoading && pendingRequests.map((r) => (
+                <div key={r.id} className="bk-pending-item" onClick={() => useRequestId(r.id)}>
+                  <div>
+                    <h4>
+                      {r.title} <span style={{ fontWeight: 400, color: 'var(--inks)', fontSize: '12px' }}>→ requested by {r.requester_name}</span>
+                    </h4>
+                    <div className="bk-meta">
+                      {r.listing_type.charAt(0).toUpperCase() + r.listing_type.slice(1)}
+                      {r.borrow_days && ` · ${r.borrow_days} days`}
+                      {r.price && ` · Rs. ${r.listing_type === 'borrow' ? (r.price * (r.borrow_days || 1)).toFixed(2) : parseFloat(r.price).toFixed(2)}`}
+                      {` · requested ${new Date(r.created_at).toLocaleDateString()}`}
+                    </div>
+                  </div>
+                  <div className="bk-pending-reqid">Use Request ID</div>
                 </div>
-              )}
-
-              <label className="bk-field-label">Request ID</label>
-              <input
-                placeholder="Paste the request ID from buyer"
-                value={confirmData.request_id}
-                onChange={(e) => setConfirmData({ ...confirmData, request_id: e.target.value })}
-              />
-
-              <label className="bk-field-label">PIN</label>
-              <input
-                className="bk-pin-input-field"
-                placeholder="– – – –"
-                maxLength={4}
-                value={confirmData.pin}
-                onChange={(e) => setConfirmData({ ...confirmData, pin: e.target.value })}
-              />
-
-              <button className="bk-btn-primary" style={{ width: '100%' }} onClick={handleConfirmPin}>
-                Confirm Exchange
-              </button>
-            </div>
+              ))}
+            </>
           )}
 
         </div>
@@ -672,9 +745,9 @@ const Books = () => {
                     value={createForm.listing_type}
                     onChange={(e) => setCreateForm({ ...createForm, listing_type: e.target.value })}
                   >
-                    <option value="gift">Gift: Free</option>
-                    <option value="borrow">Borrow: Per day</option>
-                    <option value="paid">Buy: Fixed price</option>
+                    <option value="gift">Gift — Free</option>
+                    <option value="borrow">Borrow — Per day</option>
+                    <option value="paid">Buy — Fixed price</option>
                   </select>
                 </div>
               </div>
@@ -697,7 +770,7 @@ const Books = () => {
                     value={createForm.payment_info}
                     onChange={(e) => setCreateForm({ ...createForm, payment_info: e.target.value })}
                   />
-                  <div className="bk-hint">Shown to the buyer as soon as they request,this is how they will pay you</div>
+                  <div className="bk-hint">Shown to the buyer as soon as they request — this is how they'll pay you</div>
                 </>
               )}
 
@@ -725,7 +798,7 @@ const Books = () => {
               <div className="bk-hint">Where should the buyer meet you?</div>
 
               <label>
-                Contact Number <span style={{ fontWeight: 400, color: 'var(--inks)' }}>hidden until a request is confirmed</span>
+                Contact Number <span style={{ fontWeight: 400, color: 'var(--inks)' }}>— hidden until a request is confirmed</span>
               </label>
               <input
                 placeholder="e.g. 03XX-XXXXXXX"
@@ -779,7 +852,7 @@ const Books = () => {
               <strong>{requestingBook.title}</strong> · Rs. {requestingBook.price}/day
             </p>
 
-            <label className="bk-field-label">Borrow duration (1-15 days)</label>
+            <label className="bk-field-label">Borrow duration (1–15 days)</label>
             <input
               type="number"
               min="1"

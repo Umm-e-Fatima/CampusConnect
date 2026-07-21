@@ -61,6 +61,29 @@ router.get('/distinct-courses', authenticate, async (req, res) => {
   }
 });
 
+// GET /api/books/seller/pending — seller sees requests awaiting their PIN confirmation
+router.get('/seller/pending', authenticate, async (req, res) => {
+  try {
+    await revertExpiredPending();
+
+    const result = await pool.query(
+      `SELECT br.id, br.borrow_days, br.borrow_due_date, br.created_at,
+              bl.title, bl.author, bl.course_code, bl.listing_type, bl.price,
+              u.full_name as requester_name, u.email as requester_email
+       FROM book_requests br
+       JOIN book_listings bl ON br.listing_id = bl.id
+       JOIN users u ON br.requester_id = u.id
+       WHERE bl.seller_id = $1 AND br.status = 'pin_issued'
+       ORDER BY br.created_at DESC`,
+      [req.user.id]
+    );
+    res.json(result.rows);
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'Failed to fetch pending requests' });
+  }
+});
+
 // GET /api/books/:id
 router.get('/:id', authenticate, async (req, res) => {
   try {
@@ -200,24 +223,23 @@ router.post('/:id/request', authenticate, async (req, res) => {
         return res.status(403).json({ error: 'This listing is restricted to female students' });
     }
 
-    // For borrow listings, borrow_days is required
     if (listing.rows[0].listing_type === 'borrow' && !borrow_days)
       return res.status(400).json({ error: 'borrow_days is required for borrow listings' });
 
     const pin_code = generatePIN();
     const pin_expires_at = getPINExpiry();
 
-    // Calculate borrow due date if applicable
     let borrow_due_date = null;
     if (listing.rows[0].listing_type === 'borrow' && borrow_days) {
       borrow_due_date = new Date();
       borrow_due_date.setDate(borrow_due_date.getDate() + parseInt(borrow_days));
     }
 
-    await pool.query(
+    const insertResult = await pool.query(
       `INSERT INTO book_requests
         (listing_id, requester_id, pin_code, pin_expires_at, status, borrow_days, borrow_due_date)
-       VALUES ($1,$2,$3,$4,'pin_issued',$5,$6)`,
+       VALUES ($1,$2,$3,$4,'pin_issued',$5,$6)
+       RETURNING id`,
       [req.params.id, req.user.id, pin_code, pin_expires_at, borrow_days || null, borrow_due_date]
     );
 
@@ -232,6 +254,7 @@ router.post('/:id/request', authenticate, async (req, res) => {
 
     res.status(201).json({
       message: 'PIN generated. Show this to the seller at the campus drop point.',
+      request_id: insertResult.rows[0].id,
       pin: pin_code,
       expires_at: pin_expires_at,
       dropoff_location: listing.rows[0].dropoff_location || null,
