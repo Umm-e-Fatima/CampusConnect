@@ -200,7 +200,7 @@ const Books = () => {
   };
 
   const listingTag = (b) => {
-    if (b.listing_type === 'gift') return 'Gift — Free';
+    if (b.listing_type === 'gift') return 'Gift: Free';
     if (b.listing_type === 'borrow') return `Borrow · Rs.${b.price}/day`;
     return `Paid · Rs.${b.price}`;
   };
@@ -216,7 +216,7 @@ const Books = () => {
   for (let i = 0; i < pagedBooks.length; i += 4) pagedShelfRows.push(pagedBooks.slice(i, i + 4));
 
   const previewTag = createForm.listing_type === 'gift'
-    ? 'Gift — Free'
+    ? 'Gift: Free'
     : createForm.listing_type === 'borrow'
       ? `Borrow · Rs.${createForm.price || '0'}/day`
       : `Paid · Rs.${createForm.price || '0'}`;
@@ -412,11 +412,11 @@ const Books = () => {
           {/* Page head */}
           <div className="bk-page-head">
             <div className="bk-page-head-left">
-              <button className="bk-back-btn" onClick={() => navigate('/home')}>← Back</button>
+              <button className="bk-back-btn" onClick={() => navigate('/home')}>Back</button>
               <h1 className="bk-h1">Book Exchange</h1>
             </div>
             <button className="bk-btn-primary" onClick={() => setShowCreateForm(true)}>
-              + List a Book
+              List a Book
             </button>
           </div>
 
@@ -458,7 +458,7 @@ const Books = () => {
 
               {pin && (
                 <div className="bk-pin-box">
-                  <p className="bk-pin-label">Your PIN — show this to the seller at the drop-off point</p>
+                  <p className="bk-pin-label">Your PIN,show this to the seller at the drop-off point</p>
                   <p className="bk-pin-code">{pin}</p>
                   <p className="bk-pin-meta">
                     Expires at {new Date(pinExpiry).toLocaleTimeString()}
@@ -558,9 +558,9 @@ const Books = () => {
                       Shelf <b>{(page - 1) * PAGE_SIZE + 1}–{Math.min(page * PAGE_SIZE, books.length)}</b> of <b>{books.length}</b>
                     </div>
                     <div className="bk-pager">
-                      <button disabled={page <= 1} onClick={() => setPage((p) => p - 1)}>← Previous</button>
+                      <button disabled={page <= 1} onClick={() => setPage((p) => p - 1)}>Previous</button>
                       <span className="bk-page-label">Page {page} of {totalPages}</span>
-                      <button disabled={page >= totalPages} onClick={() => setPage((p) => p + 1)}>Next shelf →</button>
+                      <button disabled={page >= totalPages} onClick={() => setPage((p) => p + 1)}>Next shelf</button>
                     </div>
                   </div>
                 </>
@@ -664,7 +664,7 @@ const Books = () => {
               {!pendingLoading && pendingRequests.length === 0 && (
                 <div className="bk-empty" style={{ maxWidth: '640px', textAlign: 'left', padding: '24px 26px' }}>
                   <h3 style={{ marginBottom: '4px' }}>No pending requests</h3>
-                  <p style={{ marginBottom: 0 }}>When a student requests one of your books, it'll show up here with its Request ID — you'll still need the PIN from them in person.</p>
+                  <p style={{ marginBottom: 0 }}>When a student requests one of your books, it will show up here with its Request ID,you will still need the PIN from them in person.</p>
                 </div>
               )}
 
@@ -745,9 +745,9 @@ const Books = () => {
                     value={createForm.listing_type}
                     onChange={(e) => setCreateForm({ ...createForm, listing_type: e.target.value })}
                   >
-                    <option value="gift">Gift — Free</option>
-                    <option value="borrow">Borrow — Per day</option>
-                    <option value="paid">Buy — Fixed price</option>
+                    <option value="gift">Gift: Free</option>
+                    <option value="borrow">Borrow: Per day</option>
+                    <option value="paid">Buy: Fixed price</option>
                   </select>
                 </div>
               </div>
@@ -770,7 +770,7 @@ const Books = () => {
                     value={createForm.payment_info}
                     onChange={(e) => setCreateForm({ ...createForm, payment_info: e.target.value })}
                   />
-                  <div className="bk-hint">Shown to the buyer as soon as they request — this is how they'll pay you</div>
+                  <div className="bk-hint">Shown to the buyer as soon as they request, this is how they will pay you</div>
                 </>
               )}
 
@@ -798,7 +798,7 @@ const Books = () => {
               <div className="bk-hint">Where should the buyer meet you?</div>
 
               <label>
-                Contact Number <span style={{ fontWeight: 400, color: 'var(--inks)' }}>— hidden until a request is confirmed</span>
+                Contact Number <span style={{ fontWeight: 400, color: 'var(--inks)' }}> hidden until a request is confirmed</span>
               </label>
               <input
                 placeholder="e.g. 03XX-XXXXXXX"
