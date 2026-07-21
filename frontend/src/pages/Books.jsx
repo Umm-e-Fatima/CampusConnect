@@ -195,7 +195,7 @@ const Books = () => {
     }
   };
 
-  const useRequestId = (id) => {
+  const applyRequestId = (id) => {
     setConfirmData({ ...confirmData, request_id: id });
   };
 
@@ -669,7 +669,7 @@ const Books = () => {
               )}
 
               {!pendingLoading && pendingRequests.map((r) => (
-                <div key={r.id} className="bk-pending-item" onClick={() => useRequestId(r.id)}>
+                <div key={r.id} className="bk-pending-item" onClick={() => applyRequestId(r.id)}>
                   <div>
                     <h4>
                       {r.title} <span style={{ fontWeight: 400, color: 'var(--inks)', fontSize: '12px' }}>→ requested by {r.requester_name}</span>
