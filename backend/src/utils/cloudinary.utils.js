@@ -22,7 +22,7 @@ const generateWatermarkedSignedURL = (publicId, buyerEmail, buyerName) => {
   const watermarkText = `${buyerName} | ${buyerEmail} | ${new Date().toISOString().split('T')[0]}`;
 
   const url = cloudinary.url(publicId, {
-    resource_type: 'auto',
+    resource_type: 'image',
     type: 'upload',
     sign_url: true,
     expires_at: expiresAt,
@@ -32,7 +32,7 @@ const generateWatermarkedSignedURL = (publicId, buyerEmail, buyerName) => {
           font_family: 'Arial',
           font_size: 28,
           font_weight: 'bold',
-          text: encodeURIComponent(watermarkText),
+          text: watermarkText.replace(/,/g, '%2C').replace(/\//g, '%2F'),
         },
         color: '#FF0000',
         opacity: 40,
