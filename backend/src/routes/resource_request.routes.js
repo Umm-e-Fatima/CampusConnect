@@ -5,97 +5,63 @@ const { generatePIN, getPINExpiry } = require('../utils/pin.utils');
 const { generateWatermarkedSignedURL } = require('../utils/cloudinary.utils');
 const { notifySeller } = require('../utils/push.utils');
 
-// POST /api/resource-requests/:resourceId
-// Buyer requests access to a paid resource
+// POST /api/resource-requests/confirm-pin
+// Seller confirms PIN — grants buyer download access
+// NOTE: this must be defined BEFORE the /:resourceId route below,
+// otherwise Express matches "confirm-pin" as if it were a :resourceId value.
 
-router.post('/:resourceId', authenticate, async (req, res) => {
-  const { borrow_days, delivery_mode } = req.body;
+router.post('/confirm-pin', authenticate, async (req, res) => {
+  const { request_id, pin } = req.body;
+
+  if (!request_id || !pin)
+    return res.status(400).json({ error: 'request_id and pin are required' });
 
   try {
-    // Fetch the resource
-    const resource = await pool.query(
-      'SELECT * FROM resources WHERE id = $1 AND is_active = TRUE',
-      [req.params.resourceId]
-    );
-    if (resource.rows.length === 0)
-      return res.status(404).json({ error: 'Resource not found' });
-
-    const r = resource.rows[0];
-
-    // Gift resources are free — no request needed
-    if (r.listing_type === 'gift')
-      return res.status(400).json({ error: 'This resource is free — no request needed' });
-
-    // Prevent owner from requesting their own resource
-    if (r.uploaded_by === req.user.id)
-      return res.status(400).json({ error: 'You cannot request your own resource' });
-
-    // Borrow listings require borrow_days
-    if (r.listing_type === 'borrow') {
-      if (!borrow_days || borrow_days < 1 || borrow_days > 15)
-        return res.status(400).json({ error: 'borrow_days must be between 1 and 15' });
-    }
-
-    // Calculate total price
-    const totalPrice = r.listing_type === 'borrow'
-      ? (parseFloat(r.price) * parseInt(borrow_days)).toFixed(2)
-      : parseFloat(r.price).toFixed(2);
-
-    // Generate PIN
-    const pin_code = generatePIN();
-    const pin_expires_at = getPINExpiry();
-
-    // Calculate download window — 24 hours from seller confirmation
-    // (set properly when seller confirms, not now)
+    // Fetch request + resource together
     const result = await pool.query(
-      `INSERT INTO resource_requests
-        (resource_id, requester_id, delivery_mode, borrow_days,
-         pin_code, pin_expires_at, status)
-       VALUES ($1,$2,$3,$4,$5,$6,'pending')
-       RETURNING *`,
-      [
-        req.params.resourceId,
-        req.user.id,
-        delivery_mode || 'online',
-        r.listing_type === 'borrow' ? parseInt(borrow_days) : null,
-        pin_code,
-        pin_expires_at,
-      ]
+      `SELECT rr.*, r.uploaded_by, r.title
+       FROM resource_requests rr
+       JOIN resources r ON rr.resource_id = r.id
+       WHERE rr.id = $1`,
+      [request_id]
+    );
+    const request = result.rows[0];
+
+    if (!request)
+      return res.status(404).json({ error: 'Request not found' });
+
+    // Only the resource owner can confirm
+    if (request.uploaded_by !== req.user.id)
+      return res.status(403).json({ error: 'Only the resource owner can confirm this PIN' });
+
+    if (request.pin_code !== pin)
+      return res.status(400).json({ error: 'Invalid PIN' });
+
+    if (new Date() > new Date(request.pin_expires_at))
+      return res.status(400).json({ error: 'PIN has expired. Ask buyer to request again.' });
+
+    if (request.seller_confirmed)
+      return res.status(400).json({ error: 'This PIN has already been confirmed' });
+
+    // Grant 24-hour download window
+    const download_expires_at = new Date(Date.now() + 24 * 60 * 60 * 1000);
+
+    await pool.query(
+      `UPDATE resource_requests
+       SET seller_confirmed    = TRUE,
+           status              = 'completed',
+           download_expires_at = $1,
+           updated_at          = NOW()
+       WHERE id = $2`,
+      [download_expires_at, request_id]
     );
 
-// Notify seller via push + email fallback
-const seller = await pool.query(
-  'SELECT id, email, full_name FROM users WHERE id = $1',
-  [r.uploaded_by]
-);
-
-if (seller.rows[0]) {
-  const sellerUser = seller.rows[0];
-  await notifySeller(
-    sellerUser.id,
-    {
-      title: 'New Resource Request',
-      body: `Someone wants to access your resource "${r.title}". Open CampusConnect to confirm payment.`,
-      url: '/resource-requests',
-    },
-    sellerUser.email
-  );
-}
-
-  res.status(201).json({
-    message: `Request created. Pay Rs. ${totalPrice} to the seller then show them your PIN.`,
-    request_id: result.rows[0].id,
-    pin: pin_code,
-    pin_expires_at,
-    total_price: `Rs. ${totalPrice}`,
-    payment_info: r.payment_info || null,
-    seller_instructions: r.listing_type === 'borrow'
-      ? `Borrow for ${borrow_days} days at Rs. ${r.price}/day`
-      : `One-time purchase at Rs. ${r.price}`,
-  });
+    res.json({
+      message: 'Payment confirmed. Buyer can now download the resource within 24 hours (3 attempts).',
+    });
   } catch (err) {
     console.error(err);
-    res.status(500).json({ error: 'Failed to create request' });
+    res.status(500).json({ error: 'PIN confirmation failed' });
   }
 });
 
@@ -155,65 +121,101 @@ router.get('/buyer/my-requests', authenticate, async (req, res) => {
 });
 
 
-// POST /api/resource-requests/confirm-pin
-// Seller confirms PIN — grants buyer download access
+// POST /api/resource-requests/:resourceId
+// Buyer requests access to a paid resource
 
-router.post('/confirm-pin', authenticate, async (req, res) => {
-  const { request_id, pin } = req.body;
-
-  if (!request_id || !pin)
-    return res.status(400).json({ error: 'request_id and pin are required' });
+router.post('/:resourceId', authenticate, async (req, res) => {
+  const { borrow_days, delivery_mode } = req.body;
 
   try {
-    // Fetch request + resource together
+    // Fetch the resource
+    const resource = await pool.query(
+      'SELECT * FROM resources WHERE id = $1 AND is_active = TRUE',
+      [req.params.resourceId]
+    );
+    if (resource.rows.length === 0)
+      return res.status(404).json({ error: 'Resource not found' });
+
+    const r = resource.rows[0];
+
+    // Gift resources are free — no request needed
+    if (r.listing_type === 'gift')
+      return res.status(400).json({ error: 'This resource is free — no request needed' });
+
+    // Prevent owner from requesting their own resource
+    if (r.uploaded_by === req.user.id)
+      return res.status(400).json({ error: 'You cannot request your own resource' });
+
+    // Borrow listings require borrow_days
+    if (r.listing_type === 'borrow') {
+      if (!borrow_days || borrow_days < 1 || borrow_days > 15)
+        return res.status(400).json({ error: 'borrow_days must be between 1 and 15' });
+    }
+
+    // Calculate total price
+    const totalPrice = r.listing_type === 'borrow'
+      ? (parseFloat(r.price) * parseInt(borrow_days)).toFixed(2)
+      : parseFloat(r.price).toFixed(2);
+
+    // Generate PIN
+    const pin_code = generatePIN();
+    const pin_expires_at = getPINExpiry();
+
+    // Calculate download window — 24 hours from seller confirmation
+    // (set properly when seller confirms, not now)
     const result = await pool.query(
-      `SELECT rr.*, r.uploaded_by, r.title
-       FROM resource_requests rr
-       JOIN resources r ON rr.resource_id = r.id
-       WHERE rr.id = $1`,
-      [request_id]
-    );
-    const request = result.rows[0];
-
-    if (!request)
-      return res.status(404).json({ error: 'Request not found' });
-
-    // Only the resource owner can confirm
-    if (request.uploaded_by !== req.user.id)
-      return res.status(403).json({ error: 'Only the resource owner can confirm this PIN' });
-
-    if (request.pin_code !== pin)
-      return res.status(400).json({ error: 'Invalid PIN' });
-
-    if (new Date() > new Date(request.pin_expires_at))
-      return res.status(400).json({ error: 'PIN has expired. Ask buyer to request again.' });
-
-    if (request.seller_confirmed)
-      return res.status(400).json({ error: 'This PIN has already been confirmed' });
-
-    // Grant 24-hour download window
-    const download_expires_at = new Date(Date.now() + 24 * 60 * 60 * 1000);
-
-    await pool.query(
-      `UPDATE resource_requests
-       SET seller_confirmed    = TRUE,
-           status              = 'completed',
-           download_expires_at = $1,
-           updated_at          = NOW()
-       WHERE id = $2`,
-      [download_expires_at, request_id]
+      `INSERT INTO resource_requests
+        (resource_id, requester_id, delivery_mode, borrow_days,
+         pin_code, pin_expires_at, status)
+       VALUES ($1,$2,$3,$4,$5,$6,'pending')
+       RETURNING *`,
+      [
+        req.params.resourceId,
+        req.user.id,
+        delivery_mode || 'online',
+        r.listing_type === 'borrow' ? parseInt(borrow_days) : null,
+        pin_code,
+        pin_expires_at,
+      ]
     );
 
-    res.json({
-      message: 'Payment confirmed. Buyer can now download the resource within 24 hours (3 attempts).',
+    // Notify seller via push + email fallback
+    const seller = await pool.query(
+      'SELECT id, email, full_name FROM users WHERE id = $1',
+      [r.uploaded_by]
+    );
+
+    if (seller.rows[0]) {
+      const sellerUser = seller.rows[0];
+      await notifySeller(
+        sellerUser.id,
+        {
+          title: 'New Resource Request',
+          body: `Someone wants to access your resource "${r.title}". Open CampusConnect to confirm payment.`,
+          url: '/resource-requests',
+        },
+        sellerUser.email
+      );
+    }
+
+    res.status(201).json({
+      message: `Request created. Pay Rs. ${totalPrice} to the seller then show them your PIN.`,
+      request_id: result.rows[0].id,
+      pin: pin_code,
+      pin_expires_at,
+      total_price: `Rs. ${totalPrice}`,
+      payment_info: r.payment_info || null,
+      seller_instructions: r.listing_type === 'borrow'
+        ? `Borrow for ${borrow_days} days at Rs. ${r.price}/day`
+        : `One-time purchase at Rs. ${r.price}`,
     });
   } catch (err) {
     console.error(err);
-    res.status(500).json({ error: 'PIN confirmation failed' });
+    res.status(500).json({ error: 'Failed to create request' });
   }
 });
 
- 
+
 // POST /api/resource-requests/:requestId/download
 // Buyer downloads resource — generates fresh signed watermarked URL
 
